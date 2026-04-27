@@ -162,6 +162,14 @@ def write_config_yaml(data: dict[str, str]) -> None:
     model = data.get("LLM_MODEL", "")
     is_token_plan = data.get("MINIMAX_TOKEN_PLAN_ENABLED", "").lower() == "true"
     
+    # Logic to force native provider if MiniMax key is present
+    provider = "auto"
+    if data.get("MINIMAX_API_KEY"):
+        provider = "minimax"
+        # Strip provider prefix if the user followed OpenRouter format
+        if model.startswith("minimax/"):
+            model = model.replace("minimax/", "")
+    
     config_path = Path(HERMES_HOME) / "config.yaml"
     config_path.parent.mkdir(parents=True, exist_ok=True)
     
@@ -169,7 +177,7 @@ def write_config_yaml(data: dict[str, str]) -> None:
     yaml_content = f"""\
 model:
   default: "{model}"
-  provider: "auto"
+  provider: "{provider}"
 
 terminal:
   backend: "local"
@@ -210,7 +218,13 @@ mcp_servers:
 
 
 def write_env(path: Path, data: dict[str, str]) -> None:
+    """Write sanitized vars to .env (for the gateway)."""
     path.parent.mkdir(parents=True, exist_ok=True)
+
+    # If Token Plan is enabled, force the Global API base for the LLM as well
+    if data.get("MINIMAX_TOKEN_PLAN_ENABLED", "").lower() == "true":
+        data["MINIMAX_API_BASE"] = "https://api.minimax.io/v1"
+
     cat_order = ["model", "provider", "tool",
                  "telegram", "discord", "slack", "whatsapp",
                  "email", "mattermost", "matrix", "gateway"]
