@@ -178,7 +178,6 @@ def write_config_yaml(data: dict[str, str]) -> None:
     skills_path = Path(HERMES_HOME) / "skills" / "minimax_rules.md"
     
     instructions_content = f"""\
-    instructions_content = f"""\
 # MiniMax Token Plan Max - Native Calibration
 - **Text-to-Speech (TTS):** ALWAYS use model "speech-2.8-hd".
 - **Video Generation:** ALWAYS use model "Hailuo-2.3-Fast-768P-6s". Use ASYNC mode.
