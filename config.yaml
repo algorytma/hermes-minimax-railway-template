@@ -1,4 +1,28 @@
+# MiniMax Token Plan Max Optimized Configuration
+# Note: This file is automatically managed by the web setup UI.
+
+model:
+  default: "minimax/MiniMax-M2.7"
+  provider: "auto"
+
+terminal:
+  backend: "local"
+  timeout: 60
+  cwd: "/tmp"
+
+agent:
+  max_iterations: 50
+
+data_dir: "/data/.hermes"
+
 mcp_servers:
+  minimax-research:
+    command: "uvx"
+    args: ["minimax-coding-plan-mcp"]
+    env:
+      MINIMAX_API_KEY: "${MINIMAX_API_KEY}"
+      MINIMAX_API_HOST: "https://api.minimax.io"
+
   minimax-media:
     command: "npx"
     args: ["-y", "algorytma/MiniMax-MCP-JS"]

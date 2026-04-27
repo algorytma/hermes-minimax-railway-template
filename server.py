@@ -124,6 +124,7 @@ ENV_VARS = [
     ("GATEWAY_ALLOW_ALL_USERS",  "Allow all users",          "gateway",   False),
     ("ADMIN_USERNAME",           "Admin username",           "admin",     False),
     ("ADMIN_PASSWORD",           "Admin password",           "admin",     True),
+    ("MINIMAX_TOKEN_PLAN_ENABLED", "Enable MiniMax Token Plan (Global)", "provider", False),
 ]
 
 SECRET_KEYS  = {k for k, _, _, s in ENV_VARS if s}
@@ -159,9 +160,13 @@ def read_env(path: Path) -> dict[str, str]:
 def write_config_yaml(data: dict[str, str]) -> None:
     """Write a minimal config.yaml so hermes picks up the model and provider."""
     model = data.get("LLM_MODEL", "")
+    is_token_plan = data.get("MINIMAX_TOKEN_PLAN_ENABLED", "").lower() == "true"
+    
     config_path = Path(HERMES_HOME) / "config.yaml"
     config_path.parent.mkdir(parents=True, exist_ok=True)
-    config_path.write_text(f"""\
+    
+    # Base configuration
+    yaml_content = f"""\
 model:
   default: "{model}"
   provider: "auto"
@@ -174,7 +179,23 @@ terminal:
 agent:
   max_iterations: 50
 
+data_dir: "{HERMES_HOME}"
+"""
+
+    # Add MCP servers if Token Plan is enabled
+    if is_token_plan:
+        # Create output directory for media
+        (Path(HERMES_HOME) / "mcp-output").mkdir(parents=True, exist_ok=True)
+        
+        mcp_block = f"""
 mcp_servers:
+  minimax-research:
+    command: "uvx"
+    args: ["minimax-coding-plan-mcp"]
+    env:
+      MINIMAX_API_KEY: "${{MINIMAX_API_KEY}}"
+      MINIMAX_API_HOST: "https://api.minimax.io"
+
   minimax-media:
     command: "npx"
     args: ["-y", "algorytma/MiniMax-MCP-JS"]
@@ -182,9 +203,10 @@ mcp_servers:
       MINIMAX_API_KEY: "${{MINIMAX_API_KEY}}"
       MINIMAX_API_HOST: "https://api.minimax.io"
       MINIMAX_MCP_BASE_PATH: "/data/.hermes/mcp-output"
+"""
+        yaml_content += mcp_block
 
-data_dir: "{HERMES_HOME}"
-""")
+    config_path.write_text(yaml_content)
 
 
 def write_env(path: Path, data: dict[str, str]) -> None:

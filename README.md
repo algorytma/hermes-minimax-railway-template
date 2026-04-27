@@ -1,109 +1,77 @@
-# Hermes Agent — Railway Template
+# Hermes Agent — MiniMax Token Plan Max Optimized
 
-Deploy [Hermes Agent](https://github.com/NousResearch/hermes-agent) on [Railway](https://railway.app) with a web-based admin dashboard for configuration, gateway management, and user pairing.
+Deploy [Hermes Agent](https://github.com/NousResearch/hermes-agent) on [Railway](https://railway.app) with full support for **MiniMax Token Plan Max** (Global). This fork fixes critical API host issues and integrates high-performance MCP servers for Research and Media generation.
 
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/hermes-agent-ai?referralCode=QXdhdr&utm_medium=integration&utm_source=template&utm_campaign=generic)
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/new/template?template=https://github.com/algorytma/hermes-minimax-railway-template&referralCode=QXdhdr)
 
-> Hermes Agent is an autonomous AI agent by [Nous Research](https://nousresearch.com/) that lives on your server, connects to your messaging channels (Telegram, Discord, Slack, etc.), and gets more capable the longer it runs.
+## 🚀 Why this Fork?
 
-<!-- TODO: Add dashboard screenshot -->
-<!-- ![Dashboard](docs/dashboard.png) -->
+Standard Hermes Agent templates often struggle with the **MiniMax Global API** (Token Plan Max) because:
+1. **API Host Mismatch:** Default templates use `api.minimax.chat` (Mainland China), which fails for Global accounts. This fork defaults to `api.minimax.io`.
+2. **Missing Multimodal Tools:** Video, Music, and advanced TTS require specific MCP configurations.
+3. **Complex Setup:** Manually editing `config.yaml` on Railway is tedious.
 
-## Features
+**Our Solution:** A premium setup UI with a single-click "Token Plan" toggle that injects optimized MCP configurations for both **Research** and **Media**.
 
-- **Admin Dashboard** — dark-themed UI to configure providers, channels, tools, and manage the gateway
-- **One-Page Setup** — provider dropdown, checkbox-based channel/tool toggles — no config files to edit
-- **Gateway Management** — start, stop, restart the Hermes gateway from the browser
-- **Live Status** — stat cards for gateway state, uptime, model, and pending pairing requests
-- **Live Logs** — streaming gateway log viewer
-- **User Pairing** — approve or deny users who message your bot, revoke access anytime
-- **Basic Auth** — password-protected admin panel
-- **Reset Config** — one-click reset to start fresh
+## ✨ Features
 
-## Getting Started
+- **MiniMax Token Plan Max Optimized** — One-click activation of Video, Music, TTS, and Search tools.
+- **Dual MCP Integration:**
+  - **Research MCP:** High-speed web search and image understanding.
+  - **Media MCP:** Powered by `algorytma/MiniMax-MCP-JS` for high-quality video (Hailuo-2.3), music (2.6), and HD speech (2.8).
+- **Admin Dashboard** — Sleek dark-themed UI for gateway management and user pairing.
+- **One-Page Setup** — No config files to edit.
+- **Railway Ready** — Persistent configuration via `/data` volume.
 
-The easiest way to get started:
+## 🛠️ Getting Started
 
-### 1. Get an LLM Provider Key (free)
+### 1. Get your MiniMax API Key
+1. Go to [MiniMax AI Studio](https://platform.minimax.io/).
+2. Copy your **Token Plan Max** API key (starts with `sk-cp-`).
 
-1. Register for free at [OpenRouter](https://openrouter.ai/)
-2. Create an API key from your [OpenRouter dashboard](https://openrouter.ai/keys)
-3. Pick a free model from the [model list sorted by price](https://openrouter.ai/models?order=pricing-low-to-high) (e.g. `google/gemma-3-1b-it:free`, `meta-llama/llama-3.1-8b-instruct:free`)
+### 2. Deploy to Railway
+1. Click the **Deploy on Railway** button above.
+2. Set your `ADMIN_PASSWORD`.
+3. Ensure a **Volume** is mounted at `/data`.
 
-### 2. Set Up a Telegram Bot (fastest channel)
+### 3. Configure MiniMax
+1. Open your Railway app URL.
+2. Login with `admin` and your password.
+3. In the **LLM Provider** section:
+   - Select **MiniMax**.
+   - Paste your API key.
+   - Enter your model (e.g., `minimax/MiniMax-M2.7`).
+   - **CRITICAL:** Check the box **"Enable MiniMax Token Plan (Global)"**.
+4. Configure a Messaging Channel (e.g., Telegram).
+5. Click **Save & Start**.
 
-Hermes Agent interacts entirely through messaging channels — there is no chat UI like ChatGPT. Telegram is the quickest to set up:
+## 🎨 Supported Tools (MiniMax Token Plan)
 
-1. Open Telegram and message [@BotFather](https://t.me/BotFather)
-2. Send `/newbot`, follow the prompts, and copy the **Bot Token**
-3. Send a message to your new bot — it will appear as a pairing request in the admin dashboard
-4. To find your Telegram user ID, message [@userinfobot](https://t.me/userinfobot)
+| Feature | Model | Description |
+|---------|-------|-------------|
+| **Search** | `coding-plan` | Real-time web search and coding research. |
+| **Video** | `Hailuo-2.3` | High-quality cinematic video generation. |
+| **Music** | `music-2.6` | AI-generated music with lyrics. |
+| **Speech** | `speech-2.8-hd` | Ultra-realistic text-to-speech. |
+| **Image** | `image-01` | High-fidelity image generation. |
 
-### 3. Deploy to Railway
-
-1. Click the **Deploy on Railway** button above
-2. Set the `ADMIN_PASSWORD` environment variable (or a random one will be generated and printed to deploy logs)
-3. Attach a **volume** mounted at `/data` (persists config across redeploys)
-4. Open your app URL — log in with username `admin` and your password
-
-### 4. Configure in the Admin Dashboard
-
-1. **LLM Provider** — select OpenRouter from the dropdown, paste your API key, enter the model name
-2. **Messaging Channel** — check Telegram, paste the Bot Token from BotFather
-3. Click **Save & Start** — the gateway will start and your bot goes live
-
-### 5. Start Chatting
-
-Message your Telegram bot. If you're a new user, a pairing request will appear in the admin dashboard under **Users** — click **Approve**, and you're in.
-
-<!-- TODO: Add Telegram chat screenshot -->
-<!-- ![Telegram Example](docs/telegram-example.png) -->
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `8080` | Web server port (set automatically by Railway) |
-| `ADMIN_USERNAME` | `admin` | Basic auth username |
-| `ADMIN_PASSWORD` | *(auto-generated)* | Basic auth password — if unset, a random password is printed to logs |
-
-All other configuration (LLM provider, model, channels, tools) is managed through the admin dashboard.
-
-## Supported Providers
-
-OpenRouter, DeepSeek, DashScope, GLM / Z.AI, Kimi, MiniMax, HuggingFace
-
-## Supported Channels
-
-Telegram, Discord, Slack, WhatsApp, Email, Mattermost, Matrix
-
-## Supported Tool Integrations
-
-Parallel (search), Firecrawl (scraping), Tavily (search), FAL (image gen), Browserbase, GitHub, OpenAI Voice (Whisper/TTS), Honcho (memory)
-
-## Architecture
+## 🏗️ Architecture
 
 ```
 Railway Container
 ├── Python Admin Server (Starlette + Uvicorn)
-│   ├── /            — Admin dashboard (Basic Auth)
-│   ├── /health      — Health check (no auth)
-│   └── /api/*       — Config, status, logs, gateway, pairing
-└── hermes gateway   — Managed as async subprocess
+│   ├── /setup       — Premium Setup UI
+│   └── /api/*       — Gateway orchestration
+└── hermes gateway   — Async subprocess
+    ├── minimax-research (uvx)
+    └── minimax-media (npx)
 ```
 
-The admin server runs on `$PORT` and manages the Hermes gateway as a child process. Config is stored in `/data/.hermes/.env` and `/data/.hermes/config.yaml`. Gateway stdout/stderr is captured into a ring buffer and streamed to the Logs panel.
+## 📜 Credits
 
-## Running Locally
+- **Original Project:** [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)
+- **Base UI Template:** [praveen-ks-2001/hermes-agent-template](https://github.com/praveen-ks-2001/hermes-agent-template)
+- **MiniMax MCP Fork:** [algorytma/MiniMax-MCP-JS](https://github.com/algorytma/MiniMax-MCP-JS)
 
-```bash
-docker build -t hermes-agent .
-docker run --rm -it -p 8080:8080 -e PORT=8080 -e ADMIN_PASSWORD=changeme -v hermes-data:/data hermes-agent
-```
-
-Open `http://localhost:8080` and log in with `admin` / `changeme`.
-
-## Credits
-
-- [Hermes Agent](https://github.com/NousResearch/hermes-agent) by [Nous Research](https://nousresearch.com/)
-- UI inspired by [OpenClaw](https://github.com/praveen-ks-2001/openclaw-railway) admin template
+---
+Developed with ❤️ by **algorytma** for the AI Community.
