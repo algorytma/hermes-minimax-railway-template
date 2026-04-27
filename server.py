@@ -173,6 +173,23 @@ def write_config_yaml(data: dict[str, str]) -> None:
     config_path = Path(HERMES_HOME) / "config.yaml"
     config_path.parent.mkdir(parents=True, exist_ok=True)
     
+    # Write instructions.md for persistent agent behavior
+    instructions_path = Path(HERMES_HOME) / "instructions.md"
+    instructions_content = f"""\
+# MiniMax Token Plan Max Usage Rules
+- **Text-to-Speech (TTS):** Use model "speech-2.8-hd". If unsure, leave the model parameter empty.
+- **Video Generation:** Use model "MiniMax-Hailuo-2.3". Use ASYNC mode for better stability.
+- **Music Generation:** Use model "music-2.6".
+- **Image Generation:** Use model "image-01".
+- **File Management:** All generated media is stored in "{HERMES_HOME}/mcp-output". Always check this directory.
+- **URL Handling:** MiniMax temporary URLs expire in 5 minutes. Download or use them immediately.
+- **Plan Constraints:** Do not attempt to use "speech-02-hd" or "T2V-01" as they are not in the current Token Plan.
+"""
+    try:
+        instructions_path.write_text(instructions_content, encoding="utf-8")
+    except Exception as e:
+        print(f"Error writing instructions.md: {e}")
+
     # Base configuration
     yaml_content = f"""\
 model:
@@ -186,14 +203,6 @@ terminal:
 
 agent:
   max_iterations: 50
-  system_prompt: |
-    You are an expert assistant with access to MiniMax Token Plan Max.
-    When using MiniMax tools (minimax-media), ALWAYS use these specific model names:
-    - Text-to-Speech: "speech-2.8-hd"
-    - Video Generation: "MiniMax-Hailuo-2.3"
-    - Music Generation: "music-2.6"
-    - Image Generation: "image-01"
-    Do not use older models like speech-02-hd or T2V-01 as they are not supported by the current plan.
 
 data_dir: "{HERMES_HOME}"
 """
