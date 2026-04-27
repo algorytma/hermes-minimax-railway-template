@@ -230,7 +230,7 @@ mcp_servers:
     command: "uvx"
     args: ["minimax-mcp"]
     env:
-      MINIMAX_API_KEY: "${MINIMAX_API_KEY}"
+      MINIMAX_API_KEY: "${{MINIMAX_API_KEY}}"
       MINIMAX_API_HOST: "https://api.minimax.io"
 """
         yaml_content += mcp_block
