@@ -180,7 +180,7 @@ def write_config_yaml(data: dict[str, str]) -> None:
     instructions_content = f"""\
 # MiniMax Token Plan Max Usage Rules
 - **Text-to-Speech (TTS):** ALWAYS use model "speech-2.8-hd".
-- **Video Generation:** ALWAYS use model "Hailuo-2.3-Fast-768P-5s". Use ASYNC mode for better stability.
+- **Video Generation:** ALWAYS use model "Hailuo-2.3-Fast-768P-6s". Use ASYNC mode for better stability.
 - **Music Generation:** ALWAYS use model "music-2.6".
 - **Image Generation:** ALWAYS use model "image-01".
 - **Rule #1:** If a tool fails with "plan not support model", immediately retry by OMITTING the model parameter entirely.
@@ -215,7 +215,7 @@ agent:
     You are DIRECTLY connected to MiniMax API (not via OpenRouter).
     Rules for Tools:
     1. For TTS: use "speech-2.8-hd"
-    2. For Video: use "Hailuo-2.3-Fast-768P-5s" (Async mode)
+    2. For Video: use "Hailuo-2.3-Fast-768P-6s" (Async mode)
     3. For Music: use "music-2.6"
     4. For Images: use "image-01"
     5. For Vision (Understand Image): ALWAYS download the image to "/tmp" first using terminal/curl, then pass the LOCAL PATH to the tool. This avoids 403 expiry errors.
