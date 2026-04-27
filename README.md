@@ -13,6 +13,24 @@ Standard Hermes Agent templates often struggle with the **MiniMax Global API** (
 
 **Our Solution:** A premium setup UI with a single-click "Token Plan" toggle that injects optimized MCP configurations for both **Research** and **Media**.
 
+# 🚀 Hermes MiniMax — Native Architecture Upgrade
+
+This repository has been upgraded to the **Official MiniMax Native Architecture**. We have transitioned from custom forks and community patches to the official **MiniMax MCP Ecosystem**, ensuring the highest level of stability, speed, and multimodal compatibility.
+
+## 🌟 Key Features of the Native Upgrade
+- **Official Media Engine:** Powered by `uvx minimax-mcp` for flawless Text-to-Speech, Image, and Video generation.
+- **Official Research Engine:** Powered by `minimax-coding-plan-mcp` for lightning-fast Web Search and VLM.
+- **Auto-Model Selection:** No more manual model names. The official MCP servers automatically use the best models supported by your **Token Plan Max**.
+- **Enhanced Stability:** Direct integration with MiniMax Global API endpoints, bypassing complex routing layers.
+
+## 🛠 Technical Stack
+- **Core:** Hermes Agent (Python)
+- **Official MCPs:**
+  - `minimax-mcp` (Media: Video, Audio, Image)
+  - `minimax-coding-plan-mcp` (Research: Search, Vision)
+- **Deployment:** Railway (Dockerized)
+- **Persistence:** Mounted `/data` volume for configuration and media storage.
+
 ## ✨ Features
 
 - **MiniMax Token Plan Max Optimized** — One-click activation of Video, Music, TTS, and Search tools.

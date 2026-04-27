@@ -178,20 +178,14 @@ def write_config_yaml(data: dict[str, str]) -> None:
     skills_path = Path(HERMES_HOME) / "skills" / "minimax_rules.md"
     
     instructions_content = f"""\
-# MiniMax Token Plan Max Usage Rules
-- **Text-to-Speech (TTS):** ALWAYS use model "speech-2.8-hd".
-- **Video Generation:** ALWAYS use model "Hailuo-2.3-Fast-768P-6s". Use ASYNC mode for better stability.
-- **Music Generation:** ALWAYS use model "music-2.6".
-- **Image Generation:** ALWAYS use model "image-01".
-- **Rule #1:** If a tool fails with "plan not support model", immediately retry by OMITTING the model parameter entirely.
-- **Rule #2:** MiniMax temporary URLs expire in 5 minutes. Download or use them immediately.
-- **Storage:** All media files are in "{HERMES_HOME}/mcp-output".
-- **Models to AVOID:** Do not use "speech-02-hd", "T2V-01", or "MiniMax-Hailuo-2.3".
+# MiniMax Native Integration Rules
+- **Tools:** You are using official MiniMax MCP tools for Image, Video, Audio, and Research.
+- **Model Selection:** The official MCP servers handle model selection automatically. Trust their defaults.
+- **URL Handling:** MiniMax temporary URLs expire in 5 minutes. Download or use them immediately.
+- **Storage:** All generated media files are stored in "{HERMES_HOME}/mcp-output".
 """
     try:
-        # Write to main instructions
         instructions_path.write_text(instructions_content, encoding="utf-8")
-        # Also write to skills for extra visibility
         skills_path.parent.mkdir(parents=True, exist_ok=True)
         skills_path.write_text(instructions_content, encoding="utf-8")
     except Exception as e:
@@ -211,15 +205,9 @@ terminal:
 agent:
   max_iterations: 50
   system_prompt: |
-    You are an expert Hermes AI assistant using MiniMax Token Plan Max (Native).
-    You are DIRECTLY connected to MiniMax API (not via OpenRouter).
-    Rules for Tools:
-    1. For TTS: use "speech-2.8-hd"
-    2. For Video: use "Hailuo-2.3-Fast-768P-6s" (Async mode)
-    3. For Music: use "music-2.6"
-    4. For Images: use "image-01"
-    5. For Vision (Understand Image): ALWAYS download the image to "/tmp" first using terminal/curl, then pass the LOCAL PATH to the tool. This avoids 403 expiry errors.
-    If any model fails with "plan support" error, retry with model=null.
+    You are an expert Hermes AI assistant using the Official MiniMax Native Integration.
+    You have direct access to Multimodal tools (Image, Video, Audio) and Research tools (Search, VLM).
+    Always prefer official defaults for models. If a tool requires an image input, download it locally first.
 
 data_dir: "{HERMES_HOME}"
 """
@@ -239,12 +227,11 @@ mcp_servers:
       MINIMAX_API_HOST: "https://api.minimax.io"
 
   minimax-media:
-    command: "npx"
-    args: ["-y", "algorytma/MiniMax-MCP-JS"]
+    command: "uvx"
+    args: ["minimax-mcp"]
     env:
-      MINIMAX_API_KEY: "${{MINIMAX_API_KEY}}"
+      MINIMAX_API_KEY: "${MINIMAX_API_KEY}"
       MINIMAX_API_HOST: "https://api.minimax.io"
-      MINIMAX_MCP_BASE_PATH: "/data/.hermes/mcp-output"
 """
         yaml_content += mcp_block
 
