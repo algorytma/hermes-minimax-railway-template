@@ -360,7 +360,7 @@ def _is_authenticated(request: Request) -> bool:
 
 
 def _safe_return_to(value: str) -> str:
-    """Reject open-redirect attempts — only allow same-origin relative paths."""
+    """Reject open-redirect attempts - only allow same-origin relative paths."""
     if not value or not value.startswith("/") or value.startswith("//"):
         return "/"
     # Strip any scheme/netloc that slipped through.
