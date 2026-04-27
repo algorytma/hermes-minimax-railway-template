@@ -233,11 +233,12 @@ mcp_servers:
       MINIMAX_API_HOST: "https://api.minimax.io"
 
   minimax-media:
-    command: "uvx"
-    args: ["minimax-mcp"]
+    command: "npx"
+    args: ["-y", "algorytma/MiniMax-MCP-JS"]
     env:
       MINIMAX_API_KEY: "${{MINIMAX_API_KEY}}"
       MINIMAX_API_HOST: "https://api.minimax.io"
+      MINIMAX_MCP_BASE_PATH: "/data/.hermes/mcp-output"
 """
         yaml_content += mcp_block
 
