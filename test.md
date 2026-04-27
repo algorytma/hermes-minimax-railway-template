@@ -1,0 +1,1 @@
+railway ssh --project=635a2a2b-3b2c-4ea7-b4fd-eb7cd0b69dd3 --environment=18b5b789-bcee-468b-89d4-e6291ccda6b2 --service=88ab3ed8-418b-4e14-9654-09d4e82a217c

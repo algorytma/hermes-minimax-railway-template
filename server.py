@@ -175,21 +175,27 @@ def write_config_yaml(data: dict[str, str]) -> None:
     
     # Write instructions.md for persistent agent behavior
     instructions_path = Path(HERMES_HOME) / "instructions.md"
+    skills_path = Path(HERMES_HOME) / "skills" / "minimax_rules.md"
+    
     instructions_content = f"""\
 # MiniMax Token Plan Max Usage Rules
 - **Text-to-Speech (TTS):** ALWAYS use model "speech-2.8-hd".
-- **Video Generation:** ALWAYS use model "Hailuo-2.3-Fast-768P-5s". Use ASYNC mode.
+- **Video Generation:** ALWAYS use model "Hailuo-2.3-Fast-768P-5s". Use ASYNC mode for better stability.
 - **Music Generation:** ALWAYS use model "music-2.6".
 - **Image Generation:** ALWAYS use model "image-01".
 - **Rule #1:** If a tool fails with "plan not support model", immediately retry by OMITTING the model parameter entirely.
-- **Rule #2:** MiniMax temporary URLs expire in 5 minutes. You must use them immediately.
+- **Rule #2:** MiniMax temporary URLs expire in 5 minutes. Download or use them immediately.
 - **Storage:** All media files are in "{HERMES_HOME}/mcp-output".
-- **Models to AVOID:** Do not use "speech-02-hd", "T2V-01", or "MiniMax-Hailuo-2.3" (use the full name instead).
+- **Models to AVOID:** Do not use "speech-02-hd", "T2V-01", or "MiniMax-Hailuo-2.3".
 """
     try:
+        # Write to main instructions
         instructions_path.write_text(instructions_content, encoding="utf-8")
+        # Also write to skills for extra visibility
+        skills_path.parent.mkdir(parents=True, exist_ok=True)
+        skills_path.write_text(instructions_content, encoding="utf-8")
     except Exception as e:
-        print(f"Error writing instructions.md: {e}")
+        print(f"Error writing instructions/skills: {e}")
 
     # Base configuration
     yaml_content = f"""\
@@ -204,6 +210,15 @@ terminal:
 
 agent:
   max_iterations: 50
+  system_prompt: |
+    You are an expert Hermes AI assistant using MiniMax Token Plan Max (Native).
+    You are DIRECTLY connected to MiniMax API (not via OpenRouter).
+    Rules for Tools:
+    1. For TTS: use "speech-2.8-hd"
+    2. For Video: use "Hailuo-2.3-Fast-768P-5s" (Async mode)
+    3. For Music: use "music-2.6"
+    4. For Images: use "image-01"
+    If any model fails with "plan support" error, retry with model=null.
 
 data_dir: "{HERMES_HOME}"
 """
