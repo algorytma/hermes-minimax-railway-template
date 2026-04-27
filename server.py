@@ -178,11 +178,14 @@ def write_config_yaml(data: dict[str, str]) -> None:
     skills_path = Path(HERMES_HOME) / "skills" / "minimax_rules.md"
     
     instructions_content = f"""\
-# MiniMax Native Integration Rules
-- **Tools:** You are using official MiniMax MCP tools for Image, Video, Audio, and Research.
-- **Model Selection:** The official MCP servers handle model selection automatically. Trust their defaults.
-- **URL Handling:** MiniMax temporary URLs expire in 5 minutes. Download or use them immediately.
-- **Storage:** All generated media files are stored in "{HERMES_HOME}/mcp-output".
+    instructions_content = f"""\
+# MiniMax Token Plan Max - Native Calibration
+- **Text-to-Speech (TTS):** ALWAYS use model "speech-2.8-hd".
+- **Video Generation:** ALWAYS use model "Hailuo-2.3-Fast-768P-6s". Use ASYNC mode.
+- **Music Generation:** ALWAYS use model "music-2.6".
+- **Image Generation:** ALWAYS use model "image-01".
+- **Vision (VLM):** Download image to "/tmp" first, then analyze.
+- **Rule:** Do NOT use defaults. Always explicitly provide the model names above to avoid plan errors.
 """
     try:
         instructions_path.write_text(instructions_content, encoding="utf-8")
@@ -205,9 +208,13 @@ terminal:
 agent:
   max_iterations: 50
   system_prompt: |
-    You are an expert Hermes AI assistant using the Official MiniMax Native Integration.
-    You have direct access to Multimodal tools (Image, Video, Audio) and Research tools (Search, VLM).
-    Always prefer official defaults for models. If a tool requires an image input, download it locally first.
+    You are an expert Hermes AI assistant using the Official MiniMax Native Integration (Token Plan Max).
+    CRITICAL: Always explicitly specify these models when using tools:
+    - Audio/TTS: "speech-2.8-hd"
+    - Video: "Hailuo-2.3-Fast-768P-6s"
+    - Music: "music-2.6"
+    - Image: "image-01"
+    If a tool fails with "plan support" error, retry once with model=null.
 
 data_dir: "{HERMES_HOME}"
 """
