@@ -186,6 +186,14 @@ terminal:
 
 agent:
   max_iterations: 50
+  system_prompt: |
+    You are an expert assistant with access to MiniMax Token Plan Max.
+    When using MiniMax tools (minimax-media), ALWAYS use these specific model names:
+    - Text-to-Speech: "speech-2.8-hd"
+    - Video Generation: "MiniMax-Hailuo-2.3"
+    - Music Generation: "music-2.6"
+    - Image Generation: "image-01"
+    Do not use older models like speech-02-hd or T2V-01 as they are not supported by the current plan.
 
 data_dir: "{HERMES_HOME}"
 """
