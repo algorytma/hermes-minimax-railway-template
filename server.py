@@ -218,6 +218,7 @@ agent:
     2. For Video: use "Hailuo-2.3-Fast-768P-5s" (Async mode)
     3. For Music: use "music-2.6"
     4. For Images: use "image-01"
+    5. For Vision (Understand Image): ALWAYS download the image to "/tmp" first using terminal/curl, then pass the LOCAL PATH to the tool. This avoids 403 expiry errors.
     If any model fails with "plan support" error, retry with model=null.
 
 data_dir: "{HERMES_HOME}"
