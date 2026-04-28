@@ -234,7 +234,7 @@ mcp_servers:
 
   minimax-media:
     command: "npx"
-    args: ["-y", "algorytma/MiniMax-MCP-JS@latest"]
+    args: ["-y", "algorytma/MiniMax-MCP-JS"]
     env:
       MINIMAX_API_KEY: "${{MINIMAX_API_KEY}}"
       MINIMAX_API_HOST: "https://api.minimax.io"
