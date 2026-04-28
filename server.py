@@ -185,17 +185,6 @@ def write_config_yaml(data: dict[str, str]) -> None:
 - **Image Generation:** ALWAYS use model "image-01".
 - **Vision (VLM):** Download image to "/tmp" first, then analyze.
 - **Rule:** Do NOT use defaults. Always explicitly provide the model names above to avoid plan errors.
-
-# TEST PIPELINE SKILL
-If the user says "Test pipeline [KONU]" (e.g. "Test pipeline Bebek Giyimi"), you MUST execute the following 7-step multimedia pipeline for that specific [KONU]. NEVER use external libraries (like HeartMuLa), ONLY use your official MiniMax MCP tools.
-1. **Research:** Search for 2026 trends about [KONU] and pick 3 key points.
-2. **Lyrics:** Write a short, engaging jingle/lyrics for [KONU].
-3. **Music:** Use `music_generation` tool to turn the lyrics into a song. Prompt: "highly produced, matching the vibe of [KONU]". Model: `music-2.6` (fallback `music-2.5`).
-4. **Image:** Create a stunning image about [KONU]. Prompt MUST include: "8k resolution, photorealistic, cinematic lighting, masterpiece". Model: `image-01`.
-5. **Video:** Animate the image. Prompt MUST include motion: "Slow camera pan, dynamic motion, cinematic movement". Model: `Hailuo-2.3-Fast-768P-6s`.
-6. **Vision (VLM):** Analyze the generated image and write a 2-sentence Instagram caption in Turkish.
-7. **Audio/TTS:** Read the caption aloud. You MUST use `list_voices` to find a high-quality Turkish voice ID (e.g., `Turkish_CalmWoman`) and use it. Model: `speech-2.8-hd`.
-At the end, present a complete report containing all downloaded media files.
 """
     try:
         instructions_path.write_text(instructions_content, encoding="utf-8")
