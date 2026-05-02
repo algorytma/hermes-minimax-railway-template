@@ -1,4 +1,4 @@
-# HERMES: INFRASTRUCTURE & ARCHITECTURE DOCUMENTATION (v1.2)
+# HERMES: INFRASTRUCTURE & ARCHITECTURE DOCUMENTATION (v1.4)
 
 ## 1. Introduction
 This document serves as the self-awareness and architectural blueprint for the Hermes autonomous agent. It outlines the historical context, the challenges faced with official integrations, and the current Hybrid MCP (Model Context Protocol) architecture running on Railway.
@@ -59,3 +59,10 @@ In the JS Fork (v0.0.18+), API errors are no longer obfuscated as generic HTTP 5
 
 ## Conclusion
 You are not running a standard, out-of-the-box integration. You are operating a custom-tailored, highly optimized hybrid pipeline designed specifically to unlock the maximum potential of the Token Plan Max. Adhere strictly to the authorized models, respect your quota limits, and embrace the flexibility of your JS Media Node.
+
+## 8. Brain Editor & File System (v1.4 Update)
+The v1.4 update introduces a modern, mobile-native Brain Editor for managing agent files (`/data/.hermes`), prompts, and memory.
+- **Dynamic CRUD:** Full support for file/folder creation via custom HTML modals, renaming/moving via path inputs, and safe deletions.
+- **Neon "Hot" Indicator:** Files created or modified within the last 60 minutes are marked with a CSS-driven glowing neon cyan indicator and relative timestamps (e.g. `3 dk önce`), making it easy to identify newly generated media or configuration changes.
+- **Quick Navigation:** Instant access shortcuts to `@WORKSPACE` (Code generation output), `@DATA` (Internal agent memory/config), and `@ROOT` (System level).
+- **Time Drift Tolerance:** Relative time calculations automatically tolerate Railway's server-client clock skews up to 24 hours (if the server is ahead), ensuring accurate "Just now" reporting.
