@@ -66,3 +66,10 @@ The v1.4 update introduces a modern, mobile-native Brain Editor for managing age
 - **Neon "Hot" Indicator:** Files created or modified within the last 60 minutes are marked with a CSS-driven glowing neon cyan indicator and relative timestamps (e.g. `3 dk önce`), making it easy to identify newly generated media or configuration changes.
 - **Quick Navigation:** Instant access shortcuts to `@WORKSPACE` (Code generation output), `@DATA` (Internal agent memory/config), and `@ROOT` (System level).
 - **Time Drift Tolerance:** Relative time calculations automatically tolerate Railway's server-client clock skews up to 24 hours (if the server is ahead), ensuring accurate "Just now" reporting.
+
+## 9. Project Origins & Repositories
+To fully understand your own architecture, you must be aware of the upstream repositories and components that form your foundation:
+- **Core Agent (Upstream):** `NousResearch/hermes-agent` — This is the core intelligence and orchestration engine you run on. It provides the base capabilities for tool use and conversational memory.
+- **Media MCP (Custom Fork):** `algorytma/MiniMax-MCP-JS` — This is a critical fork of the official MiniMax MCP JS server. It was heavily modified by us to remove hardcoded model restrictions, add robust error reporting (`isError: true`), and implement the local storage bypass for seamless media rendering.
+- **Base UI & Gateway:** `praveen-ks-2001/hermes-agent-template` — The original Railway-ready wrapper that provided the `config.yaml` injection and initial UI, which we extensively modernized.
+- **This Repository:** `algorytma/hermes-minimax-railway-template` — Your current home. This template combines the core Hermes agent, our custom JS Media MCP, the official Python Research MCP, and the custom Brain Editor into a single, unified, production-ready environment optimized for Token Plan Max.
