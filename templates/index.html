@@ -760,12 +760,49 @@
     white-space: pre;
     color: var(--text);
   }
+  /* Mobile Menu Styles */
+  .mobile-menu-btn {
+    display: none;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 24px;
+    line-height: 1;
+    padding: 0 10px 0 0;
+    cursor: pointer;
+  }
+  .mobile-overlay {
+    display: none;
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(2px);
+    z-index: 998;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
   @media (max-width: 768px) {
-    .fs-sidebar { width: 100%; display: none; }
+    .fs-sidebar { width: 100%; display: none; border-radius: 0; border: none; border-bottom: 1px solid var(--border); }
     .fs-sidebar.show { display: flex; }
-    .fs-main { display: none; }
+    .fs-main { display: none; border-radius: 0; border: none; }
     .fs-main.show { display: flex; width: 100%; }
     .fs-back-btn { display: inline-flex !important; }
+    .fs-container { flex-direction: column; }
+    .panel-body { padding: 0 !important; }
+    
+    .mobile-menu-btn { display: block; }
+    .header-branding, .header-issue-link { display: none; }
+    #sidebar {
+      position: fixed;
+      top: 0; bottom: 0; left: 0; width: 280px;
+      z-index: 999;
+      background: var(--surface2);
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.5);
+    }
+    #sidebar.open { transform: translateX(0); }
+    .mobile-overlay.open { display: block; opacity: 1; pointer-events: auto; }
   }
 </style>
 </head>
@@ -773,6 +810,7 @@
 
 <!-- Header -->
 <div id="header">
+  <button class="mobile-menu-btn" @click="mobileMenuOpen = !mobileMenuOpen">☰</button>
   <img src="https://pbs.twimg.com/profile_images/1816254738234761216/TX7TW-Mp_400x400.jpg"
        alt="Hermes" style="width:28px;height:28px;border-radius:6px;flex-shrink:0;">
   <div class="logo">hermes<span>/admin</span></div>
@@ -790,13 +828,14 @@
 </div>
 
 <!-- Layout -->
-<div id="layout">
+<div id="layout" style="position: relative;">
+  <div class="mobile-overlay" :class="{open: mobileMenuOpen}" @click="mobileMenuOpen = false"></div>
 
   <!-- Sidebar -->
-  <nav id="sidebar">
+  <nav id="sidebar" :class="{open: mobileMenuOpen}">
 
     <div class="nav-group-label">Setup</div>
-    <div class="nav-item" :class="{active: page==='setup'}" @click="page='setup'">
+    <div class="nav-item" :class="{active: page==='setup'}" @click="page='setup'; mobileMenuOpen=false">
       <span class="nav-icon">⚡</span>
       <span>Setup</span>
     </div>
@@ -813,13 +852,13 @@
     <div class="nav-group-label" style="margin-top:8px">Monitor</div>
     <div class="nav-item"
          :class="{active: page==='status', locked: !isSetupDone}"
-         @click="isSetupDone && (page='status')">
+         @click="isSetupDone && (page='status'); mobileMenuOpen=false">
       <span class="nav-icon">◎</span>
       <span>Status</span>
     </div>
     <div class="nav-item"
          :class="{active: page==='logs', locked: !isSetupDone}"
-         @click="isSetupDone && (page='logs')">
+         @click="isSetupDone && (page='logs'); mobileMenuOpen=false">
       <span class="nav-icon">≡</span>
       <span>Logs</span>
     </div>
@@ -827,7 +866,7 @@
     <div class="nav-group-label" style="margin-top:8px">Manage</div>
     <div class="nav-item"
          :class="{active: page==='users', locked: !isSetupDone}"
-         @click="isSetupDone && (page='users')">
+         @click="isSetupDone && (page='users'); mobileMenuOpen=false">
       <span class="nav-icon">◈</span>
       <span>Users</span>
       <span class="nav-badge" :class="{visible: pendingCount>0}" x-text="pendingCount"></span>
@@ -836,24 +875,24 @@
     <div class="nav-group-label" style="margin-top:8px">System</div>
     <div class="nav-item"
          :class="{active: page==='brain', locked: !isSetupDone}"
-         @click="isSetupDone && (page='brain')">
+         @click="isSetupDone && (page='brain'); mobileMenuOpen=false">
       <span class="nav-icon">🧠</span>
       <span>Brain Editor</span>
     </div>
 
     <div class="nav-group-label" style="margin-top:8px">Resources</div>
-    <div class="nav-item" :class="{active: page==='guide'}" @click="page='guide'">
+    <div class="nav-item" :class="{active: page==='guide'}" @click="page='guide'; mobileMenuOpen=false">
       <span class="nav-icon">📖</span>
       <span>How to Setup</span>
     </div>
-    <div class="nav-item" :class="{active: page==='templates'}" @click="page='templates'">
+    <div class="nav-item" :class="{active: page==='templates'}" @click="page='templates'; mobileMenuOpen=false">
       <span class="nav-icon">🚀</span>
       <span>Other Templates</span>
     </div>
 
     <div class="nav-divider" style="margin-top:auto;"></div>
 
-    <div class="nav-item danger" @click="resetConfig()">
+    <div class="nav-item danger" @click="resetConfig(); mobileMenuOpen=false">
       <span class="nav-icon">⊘</span>
       <span>Reset Config</span>
     </div>
@@ -1413,6 +1452,7 @@ function app() {
   ];
 
   return {
+    mobileMenuOpen: false,
     page: 'setup',
     vars: {},
     gw: {},
