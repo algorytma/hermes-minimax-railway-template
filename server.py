@@ -741,6 +741,82 @@ async def api_config_reset(request: Request):
     return JSONResponse({"ok": True})
 
 
+# ── File System Editor (Brain Editor) ─────────────────────────────────────────
+
+async def api_fs_list(request: Request):
+    if err := guard(request): return err
+    target_dir = request.query_params.get("dir", "/")
+    
+    try:
+        target_path = Path(target_dir).resolve()
+    except Exception:
+        return JSONResponse({"error": "Invalid path"}, status_code=400)
+    
+    if not target_path.exists() or not target_path.is_dir():
+        return JSONResponse({"error": "Directory not found"}, status_code=404)
+        
+    items = []
+    try:
+        for p in target_path.iterdir():
+            try:
+                st = p.stat()
+                items.append({
+                    "name": p.name,
+                    "path": str(p).replace("\\", "/"),
+                    "is_dir": p.is_dir(),
+                    "size": st.st_size if not p.is_dir() else 0,
+                    "mtime": st.st_mtime
+                })
+            except Exception:
+                pass
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+        
+    items.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
+    
+    parent_dir = str(target_path.parent).replace("\\", "/")
+    curr_dir = str(target_path).replace("\\", "/")
+    
+    return JSONResponse({
+        "current_dir": curr_dir,
+        "parent_dir": parent_dir if parent_dir != curr_dir else None,
+        "items": items
+    })
+
+async def api_fs_read(request: Request):
+    if err := guard(request): return err
+    target_file = request.query_params.get("path", "")
+    if not target_file:
+        return JSONResponse({"error": "Path required"}, status_code=400)
+        
+    try:
+        p = Path(target_file).resolve()
+        if not p.exists() or not p.is_file():
+            return JSONResponse({"error": "File not found"}, status_code=404)
+        content = p.read_text(encoding="utf-8")
+        return JSONResponse({"content": content})
+    except UnicodeDecodeError:
+        return JSONResponse({"error": "Binary file cannot be read"}, status_code=400)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+async def api_fs_write(request: Request):
+    if err := guard(request): return err
+    try:
+        body = await request.json()
+        target_file = body.get("path")
+        content = body.get("content", "")
+        if not target_file:
+            return JSONResponse({"error": "Path required"}, status_code=400)
+            
+        p = Path(target_file).resolve()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(content, encoding="utf-8")
+        return JSONResponse({"ok": True})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 # ── Pairing ───────────────────────────────────────────────────────────────────
 def _pjson(path: Path) -> dict:
     try:
@@ -1156,6 +1232,9 @@ routes = [
     Route("/setup/api/gateway/stop",            api_gw_stop,         methods=["POST"]),
     Route("/setup/api/gateway/restart",         api_gw_restart,      methods=["POST"]),
     Route("/setup/api/config/reset",            api_config_reset,    methods=["POST"]),
+    Route("/setup/api/fs/list",                 api_fs_list),
+    Route("/setup/api/fs/read",                 api_fs_read),
+    Route("/setup/api/fs/write",                api_fs_write,        methods=["POST"]),
     Route("/setup/api/pairing/pending",         api_pairing_pending),
     Route("/setup/api/pairing/approve",         api_pairing_approve, methods=["POST"]),
     Route("/setup/api/pairing/deny",            api_pairing_deny,    methods=["POST"]),

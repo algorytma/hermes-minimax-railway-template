@@ -678,7 +678,99 @@
     text-decoration: none;
     font-weight: 500;
   }
-  .guide-callout a:hover { text-decoration: underline; }
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markdown.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+<script type="module">
+  import {CodeJar} from 'https://cdn.jsdelivr.net/npm/codejar@4.2.0/codejar.min.js';
+  window.CodeJar = CodeJar;
+</script>
+<style>
+  /* ── Brain Editor ─────────────────────────────────── */
+  .fs-container {
+    display: flex;
+    height: 100%;
+    overflow: hidden;
+    gap: 16px;
+  }
+  .fs-sidebar {
+    width: 250px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .fs-main {
+    flex: 1;
+    background: #1d1f27;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+  .fs-header {
+    padding: 10px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .fs-list {
+    flex: 1;
+    overflow-y: auto;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .fs-item {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+  }
+  .fs-item:hover { background: var(--surface); }
+  .fs-item.active { background: rgba(98,114,255,0.1); color: var(--accent); }
+  .fs-item-icon { font-size: 14px; opacity: 0.8; }
+  
+  .editor-wrapper {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+  .editor {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    padding: 16px;
+    outline: none;
+    overflow-y: auto;
+    white-space: pre;
+    color: var(--text);
+  }
+  @media (max-width: 768px) {
+    .fs-sidebar { width: 100%; display: none; }
+    .fs-sidebar.show { display: flex; }
+    .fs-main { display: none; }
+    .fs-main.show { display: flex; width: 100%; }
+    .fs-back-btn { display: inline-flex !important; }
+  }
 </style>
 </head>
 <body x-data="app()" x-init="init()" x-cloak>
@@ -743,6 +835,14 @@
       <span class="nav-icon">◈</span>
       <span>Users</span>
       <span class="nav-badge" :class="{visible: pendingCount>0}" x-text="pendingCount"></span>
+    </div>
+
+    <div class="nav-group-label" style="margin-top:8px">System</div>
+    <div class="nav-item"
+         :class="{active: page==='brain', locked: !isSetupDone}"
+         @click="isSetupDone && (page='brain')">
+      <span class="nav-icon">🧠</span>
+      <span>Brain Editor</span>
     </div>
 
     <div class="nav-group-label" style="margin-top:8px">Resources</div>
@@ -1126,6 +1226,60 @@
       </div>
     </div>
 
+    <!-- ── Brain Editor panel ────────────────────────── -->
+    <div class="panel" :class="{active: page==='brain'}" x-init="$watch('page', p => { if(p==='brain' && !fsCurrentDir) fsLoadDir('/data/.hermes') })">
+      <div class="panel-header">
+        <div class="panel-title">Brain Editor</div>
+        <div class="panel-subtitle">Manage agent files, prompts, and memory</div>
+      </div>
+      <div class="panel-body" style="padding: 16px;">
+        <div class="fs-container">
+          <!-- Sol Sütun: Klasör/Dosya Ağacı -->
+          <div class="fs-sidebar" :class="{show: !fsFileOpen}">
+            <div class="fs-header">
+              <span x-text="fsCurrentDir" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">/</span>
+              <button class="btn sm" @click="fsLoadDir('/app/prompts')" title="Prompts">🤖</button>
+              <button class="btn sm" @click="fsLoadDir('/data/.hermes')" title="Data">🗄️</button>
+              <button class="btn sm" @click="fsLoadDir('/')" title="Root">🏠</button>
+            </div>
+            <ul class="fs-list">
+              <template x-if="fsParentDir">
+                <li class="fs-item" @click="fsLoadDir(fsParentDir)">
+                  <span class="fs-item-icon">📁</span>
+                  <span>..</span>
+                </li>
+              </template>
+              <template x-for="item in fsItems" :key="item.path">
+                <li class="fs-item" :class="{active: fsCurrentFile === item.path}" @click="item.is_dir ? fsLoadDir(item.path) : fsOpenFile(item)">
+                  <span class="fs-item-icon" x-text="item.is_dir ? '📁' : '📄'"></span>
+                  <span x-text="item.name"></span>
+                </li>
+              </template>
+            </ul>
+          </div>
+          
+          <!-- Sağ Sütun: Editör -->
+          <div class="fs-main" :class="{show: fsFileOpen}">
+            <div class="fs-header">
+              <button class="btn sm fs-back-btn" style="display:none;" @click="fsFileOpen = false">← Back</button>
+              <span x-text="fsCurrentFile ? fsCurrentFile.split('/').pop() : 'Select a file'" style="flex:1; font-weight:600;"></span>
+              <template x-if="fsCurrentFile">
+                <button class="btn sm primary" @click="fsSaveFile()" :disabled="fsSaving">
+                  <span x-text="fsSaving ? 'Saving...' : 'Save Changes'"></span>
+                </button>
+              </template>
+            </div>
+            <div class="editor-wrapper" x-show="fsCurrentFile">
+              <div id="codejar-editor" class="editor language-markdown"></div>
+            </div>
+            <div class="empty-state" x-show="!fsCurrentFile" style="margin:auto;">
+              Select a file to edit
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Guide panel ─────────────────────────────── -->
     <div class="panel" :class="{active: page==='guide'}">
       <div class="panel-header">
@@ -1303,6 +1457,75 @@ function app() {
     toolsEnabled: Object.fromEntries(tools.map(t => [t.key, false])),
 
     get pendingCount() { return this.pending.length; },
+
+    // Brain Editor State
+    fsCurrentDir: '',
+    fsParentDir: null,
+    fsItems: [],
+    fsCurrentFile: null,
+    fsFileOpen: false,
+    fsSaving: false,
+    jar: null,
+
+    async fsLoadDir(path) {
+      try {
+        const r = await fetch(`/setup/api/fs/list?dir=${encodeURIComponent(path)}`);
+        if(r.status === 401) return location.reload();
+        const d = await r.json();
+        if(d.error) return this.toastErr(d.error);
+        if(d.items) {
+          this.fsCurrentDir = d.current_dir;
+          this.fsParentDir = d.parent_dir;
+          this.fsItems = d.items;
+        }
+      } catch(e) { console.error(e); }
+    },
+
+    async fsOpenFile(item) {
+      if(item.is_dir) return;
+      try {
+        const r = await fetch(`/setup/api/fs/read?path=${encodeURIComponent(item.path)}`);
+        if(r.status === 401) return location.reload();
+        const d = await r.json();
+        if(d.error) return this.toastErr(d.error);
+        
+        this.fsCurrentFile = item.path;
+        this.fsFileOpen = true;
+        
+        if(!this.jar) {
+          const el = document.getElementById('codejar-editor');
+          this.jar = window.CodeJar(el, Prism.highlightElement);
+        }
+        
+        const el = document.getElementById('codejar-editor');
+        el.className = 'editor';
+        if(item.path.endsWith('.yaml') || item.path.endsWith('.yml')) el.classList.add('language-yaml');
+        else if(item.path.endsWith('.json')) el.classList.add('language-json');
+        else el.classList.add('language-markdown');
+        
+        this.jar.updateCode(d.content);
+      } catch(e) { console.error(e); }
+    },
+    
+    async fsSaveFile() {
+      if(!this.fsCurrentFile || !this.jar) return;
+      this.fsSaving = true;
+      try {
+        const content = this.jar.toString();
+        const r = await fetch('/setup/api/fs/write', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({path: this.fsCurrentFile, content})
+        });
+        if(r.status === 401) return location.reload();
+        const d = await r.json();
+        if(d.ok) this.toastOk("File saved successfully!");
+        else this.toastErr(d.error || "Failed to save file.");
+      } catch(e) {
+        this.toastErr("Save failed");
+      }
+      this.fsSaving = false;
+    },
 
     get isSetupDone() {
       const keys = Object.values(this.providerMap).map(p => p.key);
