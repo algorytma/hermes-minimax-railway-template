@@ -808,6 +808,18 @@
   .fs-dropdown-item:hover { background: var(--surface2); }
   .fs-dropdown-item.danger { color: var(--red); }
   .fs-dropdown-item.danger:hover { background: rgba(248,81,73,0.1); }
+  .fs-dropdown-item.danger:hover { background: rgba(248,81,73,0.1); }
+  
+  .fs-modal-overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(2px);
+    z-index: 1000; display: flex; align-items: center; justify-content: center;
+  }
+  .fs-modal-content {
+    background: var(--surface); padding: 20px; border-radius: 12px;
+    width: 320px; max-width: 90%; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    border: 1px solid var(--border); display: flex; flex-direction: column; gap: 16px;
+  }
 
   
   .editor-wrapper {
@@ -1344,7 +1356,7 @@
           <div class="fs-sidebar" :class="{show: !fsFileOpen}" @click.window="fsActiveMenu = null">
             <div class="fs-header">
               <span x-text="fsCurrentDir" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:8px;">/</span>
-              <button class="btn sm" @click="fsPromptCreate()" title="New File/Folder">➕</button>
+              <button class="btn sm" @click="fsCreateName=''; fsCreateType='file'; fsCreateModal=true" title="New File/Folder">➕</button>
               <div style="display:flex; gap:6px; border-left:1px solid var(--border); padding-left:8px; margin-left:4px;">
                 <button class="btn sm" style="font-size:16px; padding:2px 8px;" @click="fsLoadDir('@WORKSPACE')" title="/.hermes/workspace">💻</button>
                 <button class="btn sm" style="font-size:16px; padding:2px 8px;" @click="fsLoadDir('@DATA')" title="/.hermes">🗄️</button>
@@ -1412,6 +1424,22 @@
             </div>
             <div class="empty-state" x-show="!fsCurrentFile" style="margin:auto;">
               Select a file to edit
+            </div>
+          </div>
+          
+          <!-- Create Modal -->
+          <div class="fs-modal-overlay" x-show="fsCreateModal" style="display:none;" @click.self="fsCreateModal=false">
+            <div class="fs-modal-content">
+              <h3 style="margin:0; font-size:16px;">Create New</h3>
+              <div style="display:flex; gap:10px;">
+                <button class="btn" :class="{primary: fsCreateType==='file'}" @click="fsCreateType='file'" style="flex:1;">📄 File</button>
+                <button class="btn" :class="{primary: fsCreateType==='folder'}" @click="fsCreateType='folder'" style="flex:1;">📁 Folder</button>
+              </div>
+              <input type="text" x-model="fsCreateName" class="form-control" :placeholder="fsCreateType==='file' ? 'e.g. prompt.txt' : 'e.g. new_folder'" @keydown.enter="fsSubmitCreate()">
+              <div style="display:flex; justify-content:flex-end; gap:8px;">
+                <button class="btn" @click="fsCreateModal=false">Cancel</button>
+                <button class="btn primary" @click="fsSubmitCreate()">Create</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1608,6 +1636,9 @@ function app() {
     fsMediaType: '',
     fsMediaUrl: '',
     fsActiveMenu: null,
+    fsCreateModal: false,
+    fsCreateType: 'file',
+    fsCreateName: '',
     jar: null,
 
     isHot(ts) {
@@ -1643,13 +1674,17 @@ function app() {
       return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     },
 
-    async fsPromptCreate() {
-      const isDir = confirm('Click OK to create a Folder, or Cancel to create a File.');
-      const name = prompt(`Enter new ${isDir ? 'folder' : 'file'} name:`);
+    async fsSubmitCreate() {
+      const name = this.fsCreateName.trim();
       if (!name) return;
+      const isDir = this.fsCreateType === 'folder';
+      
       let path = this.fsCurrentDir;
       if (path === '/') path = '';
       path = path + '/' + name;
+      
+      this.fsCreateModal = false;
+      this.fsCreateName = '';
       
       try {
         const r = await fetch('/setup/api/fs/create', {
