@@ -1,7 +1,7 @@
-# HERMES-SENPI: INFRASTRUCTURE & ARCHITECTURE DOCUMENTATION (v1.1)
+# HERMES: INFRASTRUCTURE & ARCHITECTURE DOCUMENTATION (v1.2)
 
 ## 1. Introduction
-This document serves as the self-awareness and architectural blueprint for the Hermes-Senpi autonomous agent. It outlines the historical context, the challenges faced with official integrations, and the current Hybrid MCP (Model Context Protocol) architecture running on Railway.
+This document serves as the self-awareness and architectural blueprint for the Hermes autonomous agent. It outlines the historical context, the challenges faced with official integrations, and the current Hybrid MCP (Model Context Protocol) architecture running on Railway.
 
 ## 2. History & The "Token Plan" Crisis
 Initially, this project utilized the official Python-based `minimax-mcp` server for all capabilities. However, a critical architectural blocker emerged:
