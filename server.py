@@ -753,9 +753,9 @@ async def api_fs_list(request: Request):
     elif target_dir == "@DATA":
         target_dir = str(HERMES_HOME)
     elif target_dir == "@WORKSPACE":
-        target_dir = str(HERMES_HOME / "workspace")
+        target_dir = str(Path(HERMES_HOME) / "workspace")
     elif target_dir == "@ROOT":
-        target_dir = str(Path(__file__).parent)
+        target_dir = "/"
     
     try:
         target_path = Path(target_dir).resolve()
