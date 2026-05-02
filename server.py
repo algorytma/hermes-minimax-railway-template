@@ -177,15 +177,12 @@ def write_config_yaml(data: dict[str, str]) -> None:
     instructions_path = Path(HERMES_HOME) / "instructions.md"
     skills_path = Path(HERMES_HOME) / "skills" / "minimax_rules.md"
     
-    instructions_content = f"""\
-# MiniMax Token Plan Max - Native Calibration
-- **Text-to-Speech (TTS):** ALWAYS use model "speech-2.8-hd".
-- **Video Generation:** ALWAYS use model "Hailuo-2.3-Fast-768P-6s". Use ASYNC mode.
-- **Music Generation:** ALWAYS use model "music-2.6".
-- **Image Generation:** ALWAYS use model "image-01".
-- **Vision (VLM):** Download image to "/tmp" first, then analyze.
-- **Rule:** Do NOT use defaults. Always explicitly provide the model names above to avoid plan errors.
-"""
+    # Otonom ajanın master promptunu ve kişiliğini GitHub üzerindeki dosyadan çek
+    local_prompt_path = Path(__file__).parent / "prompts" / "master_personality.md"
+    if local_prompt_path.exists():
+        instructions_content = local_prompt_path.read_text(encoding="utf-8")
+    else:
+        instructions_content = "# MiniMax Token Plan Max - Native Calibration\n"
     try:
         instructions_path.write_text(instructions_content, encoding="utf-8")
         skills_path.parent.mkdir(parents=True, exist_ok=True)
