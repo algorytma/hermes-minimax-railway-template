@@ -1529,7 +1529,7 @@ function app() {
         this.fsFileOpen = true;
         
         if(!this.jar) {
-          const mod = await import('https://cdn.jsdelivr.net/npm/codejar@4.2.0/codejar.min.js');
+          const mod = await import('https://cdn.jsdelivr.net/npm/codejar/codejar.min.js');
           const CodeJar = mod.CodeJar;
           const el = document.getElementById('codejar-editor');
           this.jar = CodeJar(el, Prism.highlightElement);
