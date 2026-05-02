@@ -810,6 +810,27 @@
   .fs-dropdown-item.danger:hover { background: rgba(248,81,73,0.1); }
   .fs-dropdown-item.danger:hover { background: rgba(248,81,73,0.1); }
   
+  .fs-item.is-hot .fs-item-name {
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .fs-item.is-hot .fs-item-meta {
+    color: var(--accent);
+    opacity: 0.9;
+  }
+  .fs-item.is-hot .fs-item-name::after {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    margin-left: 6px;
+    box-shadow: 0 0 8px var(--accent);
+    vertical-align: middle;
+    transform: translateY(-1px);
+  }
+
   .fs-modal-overlay {
     position: absolute; top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0.6); backdrop-filter: blur(2px);
@@ -882,6 +903,20 @@
     #sidebar.open { transform: translateX(0); }
     .mobile-overlay.open { display: block; opacity: 1; pointer-events: auto; }
   }
+
+  /* ── Toast ────────────────────────────────────────── */
+  #toast {
+    position: fixed; bottom: 20px; right: 20px;
+    background: var(--surface2); color: var(--text);
+    padding: 12px 20px; border-radius: 8px;
+    font-size: 13px; font-family: var(--font-sans);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 1px solid var(--border);
+    transform: translateY(100px); opacity: 0; transition: all 0.3s ease;
+    z-index: 9999; pointer-events: none;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.error { border-color: var(--red); color: var(--red); }
+  #toast.success { border-color: var(--green); color: var(--green); }
 </style>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
@@ -1373,14 +1408,11 @@
                 </li>
               </template>
               <template x-for="item in fsItems" :key="item.path">
-                <li class="fs-item" :class="{active: fsCurrentFile === item.path}" @click.stop="item.is_dir ? fsLoadDir(item.path) : fsOpenFile(item)">
+                <li class="fs-item" :class="{active: fsCurrentFile === item.path, 'is-hot': !item.is_dir && isHot(item.mtime)}" @click.stop="item.is_dir ? fsLoadDir(item.path) : fsOpenFile(item)">
                   <span class="fs-item-icon" x-text="item.is_dir ? '📁' : '📄'"></span>
                   <div class="fs-item-content">
-                    <span class="fs-item-name">
-                      <span x-text="item.name"></span>
-                      <span x-show="!item.is_dir && isHot(item.mtime)" title="Recent" style="display:inline-block; width:6px; height:6px; background:var(--accent); border-radius:50%; margin-left:6px; box-shadow:0 0 6px var(--accent); vertical-align:middle; transform:translateY(-1px);"></span>
-                    </span>
-                    <span class="fs-item-meta" :style="(!item.is_dir && isHot(item.mtime)) ? 'color: var(--accent); opacity:0.9;' : ''" x-text="(item.is_dir ? 'Folder' : fmtBytes(item.size)) + ' • ' + fmtTime(item.mtime)"></span>
+                    <span class="fs-item-name" x-text="item.name"></span>
+                    <span class="fs-item-meta" x-text="(item.is_dir ? 'Folder' : fmtBytes(item.size)) + ' • ' + fmtTime(item.mtime)"></span>
                   </div>
                   <div class="fs-item-actions">
                     <button class="fs-action-btn" @click.stop="fsActiveMenu = fsActiveMenu === item.path ? null : item.path">⋮</button>
@@ -1644,8 +1676,25 @@ function app() {
     isHot(ts) {
       if (!ts) return false;
       const d = new Date(ts * 1000);
-      const diffMins = (new Date() - d) / 60000;
-      return diffMins < 60 && diffMins > -60;
+      let diffMs = Date.now() - d.getTime();
+      if (diffMs < 0 && diffMs > -86400000) diffMs = 0; // Sunucu ilerideyse tolere et (fmtTime ile aynı)
+      return (diffMs / 60000) < 60;
+    },
+
+    toastOk(msg) {
+      const t = this.$refs.toast;
+      if(!t) return alert(msg);
+      t.textContent = msg;
+      t.className = 'show success';
+      setTimeout(() => t.className = '', 3000);
+    },
+
+    toastErr(msg) {
+      const t = this.$refs.toast;
+      if(!t) return alert(msg);
+      t.textContent = msg;
+      t.className = 'show error';
+      setTimeout(() => t.className = '', 3000);
     },
 
     fmtBytes(bytes) {
