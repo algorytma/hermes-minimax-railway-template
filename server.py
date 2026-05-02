@@ -824,6 +824,54 @@ async def api_fs_write(request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+async def api_fs_create(request: Request):
+    if err := guard(request): return err
+    try:
+        body = await request.json()
+        target_path = body.get("path")
+        is_dir = body.get("is_dir", False)
+        if not target_path: return JSONResponse({"error": "Path required"}, status_code=400)
+        p = Path(target_path).resolve()
+        if p.exists(): return JSONResponse({"error": "Already exists"}, status_code=400)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        if is_dir: p.mkdir()
+        else: p.touch()
+        return JSONResponse({"ok": True})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+async def api_fs_delete(request: Request):
+    if err := guard(request): return err
+    try:
+        body = await request.json()
+        target_path = body.get("path")
+        if not target_path: return JSONResponse({"error": "Path required"}, status_code=400)
+        p = Path(target_path).resolve()
+        if not p.exists(): return JSONResponse({"error": "Not found"}, status_code=404)
+        import shutil
+        if p.is_dir(): shutil.rmtree(p)
+        else: p.unlink()
+        return JSONResponse({"ok": True})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+async def api_fs_rename(request: Request):
+    if err := guard(request): return err
+    try:
+        body = await request.json()
+        old_path = body.get("old_path")
+        new_path = body.get("new_path")
+        if not old_path or not new_path: return JSONResponse({"error": "Paths required"}, status_code=400)
+        p_old = Path(old_path).resolve()
+        p_new = Path(new_path).resolve()
+        if not p_old.exists(): return JSONResponse({"error": "Source not found"}, status_code=404)
+        if p_new.exists(): return JSONResponse({"error": "Destination exists"}, status_code=400)
+        p_new.parent.mkdir(parents=True, exist_ok=True)
+        p_old.rename(p_new)
+        return JSONResponse({"ok": True})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 async def api_fs_media(request: Request):
     if err := guard(request): return err
     target_file = request.query_params.get("path", "")
@@ -1255,6 +1303,9 @@ routes = [
     Route("/setup/api/fs/list",                 api_fs_list),
     Route("/setup/api/fs/read",                 api_fs_read),
     Route("/setup/api/fs/write",                api_fs_write,        methods=["POST"]),
+    Route("/setup/api/fs/create",               api_fs_create,       methods=["POST"]),
+    Route("/setup/api/fs/delete",               api_fs_delete,       methods=["POST"]),
+    Route("/setup/api/fs/rename",               api_fs_rename,       methods=["POST"]),
     Route("/setup/api/fs/media",                api_fs_media),
     Route("/setup/api/pairing/pending",         api_pairing_pending),
     Route("/setup/api/pairing/approve",         api_pairing_approve, methods=["POST"]),

@@ -729,16 +729,86 @@
     padding: 8px 12px;
     border-bottom: 1px solid var(--border);
     cursor: pointer;
-    font-family: var(--font-mono);
-    font-size: 12px;
     display: flex;
     align-items: center;
     gap: 8px;
     color: var(--text);
+    position: relative;
   }
   .fs-item:hover { background: var(--surface); }
   .fs-item.active { background: rgba(98,114,255,0.1); color: var(--accent); }
-  .fs-item-icon { font-size: 14px; opacity: 0.8; }
+  .fs-item-icon { font-size: 14px; opacity: 0.8; flex-shrink: 0; }
+  
+  .fs-item-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .fs-item-name {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .fs-item-meta {
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .fs-item-actions { position: relative; }
+  .fs-action-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .fs-action-btn:hover { background: var(--surface2); color: var(--text); }
+  
+  .fs-dropdown {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    z-index: 100;
+    width: 140px;
+    display: none;
+    flex-direction: column;
+    padding: 4px 0;
+  }
+  .fs-dropdown.show { display: flex; }
+  .fs-dropdown-item {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--text);
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    text-align: left;
+    font-family: var(--font-sans);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .fs-dropdown-item:hover { background: var(--surface2); }
+  .fs-dropdown-item.danger { color: var(--red); }
+  .fs-dropdown-item.danger:hover { background: rgba(248,81,73,0.1); }
+
   
   .editor-wrapper {
     flex: 1;
@@ -1271,9 +1341,10 @@
       <div class="panel-body" style="padding: 16px;">
         <div class="fs-container">
           <!-- Sol Sütun: Klasör/Dosya Ağacı -->
-          <div class="fs-sidebar" :class="{show: !fsFileOpen}">
+          <div class="fs-sidebar" :class="{show: !fsFileOpen}" @click.window="fsActiveMenu = null">
             <div class="fs-header">
               <span x-text="fsCurrentDir" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">/</span>
+              <button class="btn sm" @click="fsPromptCreate()" title="New File/Folder">➕</button>
               <button class="btn sm" @click="fsLoadDir('@PROMPTS')" title="Prompts">🤖</button>
               <button class="btn sm" @click="fsLoadDir('@DATA')" title="Data">🗄️</button>
               <button class="btn sm" @click="fsLoadDir('@ROOT')" title="Root">🏠</button>
@@ -1282,13 +1353,28 @@
               <template x-if="fsParentDir">
                 <li class="fs-item" @click="fsLoadDir(fsParentDir)">
                   <span class="fs-item-icon">📁</span>
-                  <span>..</span>
+                  <div class="fs-item-content">
+                    <span class="fs-item-name">..</span>
+                  </div>
                 </li>
               </template>
               <template x-for="item in fsItems" :key="item.path">
-                <li class="fs-item" :class="{active: fsCurrentFile === item.path}" @click="item.is_dir ? fsLoadDir(item.path) : fsOpenFile(item)">
+                <li class="fs-item" :class="{active: fsCurrentFile === item.path}" @click.stop="item.is_dir ? fsLoadDir(item.path) : fsOpenFile(item)">
                   <span class="fs-item-icon" x-text="item.is_dir ? '📁' : '📄'"></span>
-                  <span x-text="item.name"></span>
+                  <div class="fs-item-content">
+                    <span class="fs-item-name" x-text="item.name"></span>
+                    <span class="fs-item-meta" x-text="(item.is_dir ? 'Folder' : fmtBytes(item.size)) + ' • ' + fmtTime(item.mtime)"></span>
+                  </div>
+                  <div class="fs-item-actions">
+                    <button class="fs-action-btn" @click.stop="fsActiveMenu = fsActiveMenu === item.path ? null : item.path">⋮</button>
+                    <div class="fs-dropdown" :class="{show: fsActiveMenu === item.path}" @click.stop>
+                      <button class="fs-dropdown-item" @click="fsActiveMenu=null; fsPromptRename(item)">✏️ Rename / Move</button>
+                      <template x-if="!item.is_dir">
+                        <button class="fs-dropdown-item" @click="fsActiveMenu=null; fsDownload(item)">⬇️ Download</button>
+                      </template>
+                      <button class="fs-dropdown-item danger" @click="fsActiveMenu=null; fsConfirmDelete(item)">🗑️ Delete</button>
+                    </div>
+                  </div>
                 </li>
               </template>
             </ul>
@@ -1516,7 +1602,84 @@ function app() {
     fsIsMedia: false,
     fsMediaType: '',
     fsMediaUrl: '',
+    fsActiveMenu: null,
     jar: null,
+
+    fmtBytes(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024, dm = 1, sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    },
+    fmtTime(ts) {
+      if (!ts) return '';
+      const d = new Date(ts * 1000);
+      return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    },
+
+    async fsPromptCreate() {
+      const isDir = confirm('Click OK to create a Folder, or Cancel to create a File.');
+      const name = prompt(`Enter new ${isDir ? 'folder' : 'file'} name:`);
+      if (!name) return;
+      let path = this.fsCurrentDir;
+      if (path === '/') path = '';
+      path = path + '/' + name;
+      
+      try {
+        const r = await fetch('/setup/api/fs/create', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({path, is_dir: isDir})
+        });
+        const d = await r.json();
+        if (d.error) return this.toastErr(d.error);
+        this.fsLoadDir(this.fsCurrentDir);
+      } catch (e) { console.error(e); }
+    },
+    
+    async fsPromptRename(item) {
+      const newPath = prompt('Enter new name or path:', item.path);
+      if (!newPath || newPath === item.path) return;
+      try {
+        const r = await fetch('/setup/api/fs/rename', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({old_path: item.path, new_path: newPath})
+        });
+        const d = await r.json();
+        if (d.error) return this.toastErr(d.error);
+        if (this.fsCurrentFile === item.path) this.fsCurrentFile = newPath;
+        this.fsLoadDir(this.fsCurrentDir);
+      } catch (e) { console.error(e); }
+    },
+    
+    async fsConfirmDelete(item) {
+      if (!confirm(`Are you sure you want to delete ${item.name}?\nThis action cannot be undone.`)) return;
+      try {
+        const r = await fetch('/setup/api/fs/delete', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({path: item.path})
+        });
+        const d = await r.json();
+        if (d.error) return this.toastErr(d.error);
+        if (this.fsCurrentFile === item.path) {
+          this.fsFileOpen = false;
+          this.fsCurrentFile = null;
+        }
+        this.fsLoadDir(this.fsCurrentDir);
+      } catch (e) { console.error(e); }
+    },
+    
+    fsDownload(item) {
+      const url = '/setup/api/fs/media?path=' + encodeURIComponent(item.path);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = item.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    },
 
     async fsLoadDir(path) {
       try {
