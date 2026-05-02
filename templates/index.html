@@ -1364,8 +1364,11 @@
                 <li class="fs-item" :class="{active: fsCurrentFile === item.path}" @click.stop="item.is_dir ? fsLoadDir(item.path) : fsOpenFile(item)">
                   <span class="fs-item-icon" x-text="item.is_dir ? '📁' : '📄'"></span>
                   <div class="fs-item-content">
-                    <span class="fs-item-name" x-text="item.name"></span>
-                    <span class="fs-item-meta" x-text="(item.is_dir ? 'Folder' : fmtBytes(item.size)) + ' • ' + fmtTime(item.mtime)"></span>
+                    <span class="fs-item-name">
+                      <span x-text="item.name"></span>
+                      <span x-show="!item.is_dir && isHot(item.mtime)" title="Recent" style="display:inline-block; width:6px; height:6px; background:var(--accent); border-radius:50%; margin-left:6px; box-shadow:0 0 6px var(--accent); vertical-align:middle; transform:translateY(-1px);"></span>
+                    </span>
+                    <span class="fs-item-meta" :style="(!item.is_dir && isHot(item.mtime)) ? 'color: var(--accent); opacity:0.9;' : ''" x-text="(item.is_dir ? 'Folder' : fmtBytes(item.size)) + ' • ' + fmtTime(item.mtime)"></span>
                   </div>
                   <div class="fs-item-actions">
                     <button class="fs-action-btn" @click.stop="fsActiveMenu = fsActiveMenu === item.path ? null : item.path">⋮</button>
@@ -1606,6 +1609,13 @@ function app() {
     fsMediaUrl: '',
     fsActiveMenu: null,
     jar: null,
+
+    isHot(ts) {
+      if (!ts) return false;
+      const d = new Date(ts * 1000);
+      const diffMins = Math.floor((new Date() - d) / 60000);
+      return diffMins < 60 && diffMins >= 0;
+    },
 
     fmtBytes(bytes) {
       if (bytes === 0) return '0 B';
