@@ -545,6 +545,7 @@ class Gateway:
         async for raw in self.proc.stdout:
             line = ANSI_ESCAPE.sub("", raw.decode(errors="replace").rstrip())
             self.logs.append(line)
+            print(f"[gateway] {line}", flush=True)
         if self.state == "running":
             self.state = "error"
             self.logs.append(f"[error] Gateway exited (code {self.proc.returncode})")
