@@ -1296,16 +1296,19 @@
           <!-- Sağ Sütun: Editör -->
           <div class="fs-main" :class="{show: fsFileOpen}">
             <div class="fs-header">
-              <button class="btn sm fs-back-btn" style="display:none;" @click="fsFileOpen = false">← Back</button>
+              <button class="btn sm fs-back-btn" style="display:none;" @click="fsFileOpen = false; fsIsImage = false">← Back</button>
               <span x-text="fsCurrentFile ? fsCurrentFile.split('/').pop() : 'Select a file'" style="flex:1; font-weight:600;"></span>
-              <template x-if="fsCurrentFile">
+              <template x-if="fsCurrentFile && !fsIsImage">
                 <button class="btn sm primary" @click="fsSaveFile()" :disabled="fsSaving">
                   <span x-text="fsSaving ? 'Saving...' : 'Save Changes'"></span>
                 </button>
               </template>
             </div>
-            <div class="editor-wrapper" x-show="fsCurrentFile">
+            <div class="editor-wrapper" x-show="fsCurrentFile && !fsIsImage">
               <div id="codejar-editor" class="editor language-markdown"></div>
+            </div>
+            <div class="image-viewer" x-show="fsCurrentFile && fsIsImage" style="display:none; flex:1; align-items:center; justify-content:center; padding:20px; overflow:auto; background:var(--surface);">
+              <img :src="fsImageUrl" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
             </div>
             <div class="empty-state" x-show="!fsCurrentFile" style="margin:auto;">
               Select a file to edit
@@ -1501,6 +1504,8 @@ function app() {
     fsCurrentFile: null,
     fsFileOpen: false,
     fsSaving: false,
+    fsIsImage: false,
+    fsImageUrl: '',
     jar: null,
 
     async fsLoadDir(path) {
@@ -1519,6 +1524,18 @@ function app() {
 
     async fsOpenFile(item) {
       if(item.is_dir) return;
+      
+      const isImage = item.path.match(/\.(png|jpe?g|gif|webp|svg|ico)$/i);
+      if(isImage) {
+        this.fsCurrentFile = item.path;
+        this.fsFileOpen = true;
+        this.fsIsImage = true;
+        this.fsImageUrl = '/setup/api/fs/media?path=' + encodeURIComponent(item.path);
+        return;
+      }
+      this.fsIsImage = false;
+      this.fsImageUrl = '';
+      
       try {
         const r = await fetch(`/setup/api/fs/read?path=${encodeURIComponent(item.path)}`);
         if(r.status === 401) return location.reload();

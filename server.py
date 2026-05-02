@@ -38,6 +38,7 @@ import websockets.exceptions
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import (
+    FileResponse,
     HTMLResponse,
     JSONResponse,
     RedirectResponse,
@@ -823,6 +824,18 @@ async def api_fs_write(request: Request):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+async def api_fs_media(request: Request):
+    if err := guard(request): return err
+    target_file = request.query_params.get("path", "")
+    if not target_file:
+        return JSONResponse({"error": "Path required"}, status_code=400)
+        
+    p = Path(target_file).resolve()
+    if not p.exists() or not p.is_file():
+        return JSONResponse({"error": "File not found"}, status_code=404)
+        
+    return FileResponse(p)
+
 
 # ── Pairing ───────────────────────────────────────────────────────────────────
 def _pjson(path: Path) -> dict:
@@ -1242,6 +1255,7 @@ routes = [
     Route("/setup/api/fs/list",                 api_fs_list),
     Route("/setup/api/fs/read",                 api_fs_read),
     Route("/setup/api/fs/write",                api_fs_write,        methods=["POST"]),
+    Route("/setup/api/fs/media",                api_fs_media),
     Route("/setup/api/pairing/pending",         api_pairing_pending),
     Route("/setup/api/pairing/approve",         api_pairing_approve, methods=["POST"]),
     Route("/setup/api/pairing/deny",            api_pairing_deny,    methods=["POST"]),
