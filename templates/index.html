@@ -1343,11 +1343,13 @@
           <!-- Sol Sütun: Klasör/Dosya Ağacı -->
           <div class="fs-sidebar" :class="{show: !fsFileOpen}" @click.window="fsActiveMenu = null">
             <div class="fs-header">
-              <span x-text="fsCurrentDir" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">/</span>
+              <span x-text="fsCurrentDir" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:8px;">/</span>
               <button class="btn sm" @click="fsPromptCreate()" title="New File/Folder">➕</button>
-              <button class="btn sm" @click="fsLoadDir('@PROMPTS')" title="Prompts">🤖</button>
-              <button class="btn sm" @click="fsLoadDir('@DATA')" title="Data">🗄️</button>
-              <button class="btn sm" @click="fsLoadDir('@ROOT')" title="Root">🏠</button>
+              <div style="display:flex; gap:6px; border-left:1px solid var(--border); padding-left:8px; margin-left:4px;">
+                <button class="btn sm" style="font-size:16px; padding:2px 8px;" @click="fsLoadDir('@WORKSPACE')" title="/.hermes/workspace">💻</button>
+                <button class="btn sm" style="font-size:16px; padding:2px 8px;" @click="fsLoadDir('@DATA')" title="/.hermes">🗄️</button>
+                <button class="btn sm" style="font-size:16px; padding:2px 8px;" @click="fsLoadDir('@ROOT')" title="Root (/)">🏠</button>
+              </div>
             </div>
             <ul class="fs-list">
               <template x-if="fsParentDir">
