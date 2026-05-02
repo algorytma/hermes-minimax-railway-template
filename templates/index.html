@@ -683,10 +683,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markdown.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
-<script type="module">
-  import {CodeJar} from 'https://cdn.jsdelivr.net/npm/codejar@4.2.0/codejar.min.js';
-  window.CodeJar = CodeJar;
-</script>
 <style>
   /* ── Brain Editor ─────────────────────────────────── */
   .fs-container {
@@ -1227,7 +1223,7 @@
     </div>
 
     <!-- ── Brain Editor panel ────────────────────────── -->
-    <div class="panel" :class="{active: page==='brain'}" x-init="$watch('page', p => { if(p==='brain' && !fsCurrentDir) fsLoadDir('/data/.hermes') })">
+    <div class="panel" :class="{active: page==='brain'}" x-init="$watch('page', p => { if(p==='brain' && !fsCurrentDir) fsLoadDir('@ROOT') })">
       <div class="panel-header">
         <div class="panel-title">Brain Editor</div>
         <div class="panel-subtitle">Manage agent files, prompts, and memory</div>
@@ -1238,9 +1234,9 @@
           <div class="fs-sidebar" :class="{show: !fsFileOpen}">
             <div class="fs-header">
               <span x-text="fsCurrentDir" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">/</span>
-              <button class="btn sm" @click="fsLoadDir('/app/prompts')" title="Prompts">🤖</button>
-              <button class="btn sm" @click="fsLoadDir('/data/.hermes')" title="Data">🗄️</button>
-              <button class="btn sm" @click="fsLoadDir('/')" title="Root">🏠</button>
+              <button class="btn sm" @click="fsLoadDir('@PROMPTS')" title="Prompts">🤖</button>
+              <button class="btn sm" @click="fsLoadDir('@DATA')" title="Data">🗄️</button>
+              <button class="btn sm" @click="fsLoadDir('@ROOT')" title="Root">🏠</button>
             </div>
             <ul class="fs-list">
               <template x-if="fsParentDir">
@@ -1493,8 +1489,10 @@ function app() {
         this.fsFileOpen = true;
         
         if(!this.jar) {
+          const mod = await import('https://cdn.jsdelivr.net/npm/codejar@4.2.0/codejar.min.js');
+          const CodeJar = mod.CodeJar;
           const el = document.getElementById('codejar-editor');
-          this.jar = window.CodeJar(el, Prism.highlightElement);
+          this.jar = CodeJar(el, Prism.highlightElement);
         }
         
         const el = document.getElementById('codejar-editor');

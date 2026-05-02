@@ -745,7 +745,14 @@ async def api_config_reset(request: Request):
 
 async def api_fs_list(request: Request):
     if err := guard(request): return err
-    target_dir = request.query_params.get("dir", "/")
+    target_dir = request.query_params.get("dir", "@ROOT")
+    
+    if target_dir == "@PROMPTS":
+        target_dir = str(Path(__file__).parent / "prompts")
+    elif target_dir == "@DATA":
+        target_dir = str(HERMES_HOME)
+    elif target_dir == "@ROOT":
+        target_dir = str(Path(__file__).parent)
     
     try:
         target_path = Path(target_dir).resolve()
