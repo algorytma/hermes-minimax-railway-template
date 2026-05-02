@@ -174,23 +174,6 @@ def write_config_yaml(data: dict[str, str]) -> None:
     config_path = Path(HERMES_HOME) / "config.yaml"
     config_path.parent.mkdir(parents=True, exist_ok=True)
     
-    # Write instructions.md for persistent agent behavior
-    instructions_path = Path(HERMES_HOME) / "instructions.md"
-    skills_path = Path(HERMES_HOME) / "skills" / "minimax_rules.md"
-    
-    # Otonom ajanın master promptunu ve kişiliğini GitHub üzerindeki dosyadan çek
-    local_prompt_path = Path(__file__).parent / "prompts" / "master_personality.md"
-    if local_prompt_path.exists():
-        instructions_content = local_prompt_path.read_text(encoding="utf-8")
-    else:
-        instructions_content = "# MiniMax Token Plan Max - Native Calibration\n"
-    try:
-        instructions_path.write_text(instructions_content, encoding="utf-8")
-        skills_path.parent.mkdir(parents=True, exist_ok=True)
-        skills_path.write_text(instructions_content, encoding="utf-8")
-    except Exception as e:
-        print(f"Error writing instructions/skills: {e}")
-
     # Base configuration
     yaml_content = f"""\
 model:

@@ -73,3 +73,20 @@ To fully understand your own architecture, you must be aware of the upstream rep
 - **Media MCP (Custom Fork):** `algorytma/MiniMax-MCP-JS` — This is a critical fork of the official MiniMax MCP JS server. It was heavily modified by us to remove hardcoded model restrictions, add robust error reporting (`isError: true`), and implement the local storage bypass for seamless media rendering.
 - **Base UI & Gateway:** `praveen-ks-2001/hermes-agent-template` — The original Railway-ready wrapper that provided the `config.yaml` injection and initial UI, which we extensively modernized.
 - **This Repository:** `algorytma/hermes-minimax-railway-template` — Your current home. This template combines the core Hermes agent, our custom JS Media MCP, the official Python Research MCP, and the custom Brain Editor into a single, unified, production-ready environment optimized for Token Plan Max.
+
+## 10. Upgrades & Rollbacks (Railway Docker Strategy)
+Because we operate in a containerized environment (Docker) on Railway, pulling upstream updates from the core `NousResearch/hermes-agent` and handling rollbacks must be done systematically to ensure stability.
+
+### Upgrading Hermes Agent
+The core agent code is fetched during the Docker build process. 
+1. **The `HERMES_REF` Build Argument:** Open the `Dockerfile` in the root of our template. At the top, you will see `ARG HERMES_REF=main`. 
+2. **Bleeding Edge vs Stable:** By default, it is set to `main`, meaning every time you trigger a new deployment on Railway, Docker will fetch the absolute latest commit from the official NousResearch repository.
+3. **Locking to a Stable Version:** If `main` introduces breaking changes, you should change `ARG HERMES_REF=main` to a specific stable release tag (e.g., `ARG HERMES_REF=v2026.4.23`). Check the official [Hermes Releases](https://github.com/NousResearch/hermes-agent/releases) page for the latest stable tag.
+4. **Triggering the Update:** Once you update the `Dockerfile` and push to GitHub, Railway will automatically rebuild the container, pulling down the specified version of Hermes.
+
+### Executing a Rollback
+If a new deployment breaks the agent (e.g., due to an unstable upstream commit or a bug in our custom UI), rolling back is a one-click process on Railway:
+1. **Railway Dashboard:** Go to your project on Railway.app and click on the Hermes service.
+2. **Deployments Tab:** Navigate to the "Deployments" tab to see your deployment history.
+3. **Rollback:** Find the last known working deployment (it will have a green success badge). Click the three dots (`...`) next to it and select **Redeploy** or **Rollback**.
+4. **Instant Restore:** Railway will instantly spin up the Docker image from that exact point in time. Because our `/data` folder is mounted as a persistent volume, **your files, memory, and database are completely safe** during a rollback. The rollback only reverts the application code, not your data.
