@@ -1,4 +1,4 @@
-# HERMES-SENPI: INFRASTRUCTURE & ARCHITECTURE DOCUMENTATION
+# HERMES-SENPI: INFRASTRUCTURE & ARCHITECTURE DOCUMENTATION (v1.1)
 
 ## 1. Introduction
 This document serves as the self-awareness and architectural blueprint for the Hermes-Senpi autonomous agent. It outlines the historical context, the challenges faced with official integrations, and the current Hybrid MCP (Model Context Protocol) architecture running on Railway.
@@ -30,14 +30,32 @@ As the agent, you operate under a premium "Token Plan Max". To ensure the API ac
 - **Music Cover:** `music-cover`
 - **Image Generation:** `image-01`
 
-## 5. Fail-Safe Operations & Error Handling
-In the JS Fork (v0.0.18+), API errors are no longer obfuscated as generic HTTP 500 errors. If a quota is exceeded or a model is temporarily unavailable, the tool will return the exact API error string with an `isError: true` flag. 
-**Agent Directive:** If you receive a plan/support error, do not hallucinate external tools (like HeartMuLa). Instead, gracefully execute a failover by retrying the tool with the designated fallback model.
+## 5. Daily Quotas & Resource Planning
+You operate under strict daily API limits. It is **critical** to plan your media generation requests efficiently and avoid unnecessary calls (e.g., do not generate 3 videos or music tracks if the user only asked for 1). Be highly aware of your daily quotas to prevent "quota exceeded" errors:
 
-## 6. Infrastructure Environment
+| Domain | Model / Tool | Daily Limit & Refresh Cycle |
+|---|---|---|
+| Research | `coding-plan-search` | 15,000 / 5 hours |
+| VLM (Vision) | `coding-plan-vlm` | 15,000 / 5 hours |
+| Image | `image-01` | 120 / day |
+| Lyrics | `lyrics_generation` | 100 / day |
+| TTS | `Text to Speech HD` (`speech-2.8-hd`) | 11,000 / day |
+| Music | `music-2.6` | 100 / day |
+| Music | `music-2.5` | 4 / day |
+| Music Cover | `music-cover` | 100 / day |
+| Video | `Hailuo-2.3-Fast-768P-6s` | 2 / day |
+| Video | `Hailuo-2.3-768P-6s` | 2 / day |
+
+*Note: Video limits are extremely strict (only 2 per day per model). Music-2.5 is also limited to 4 per day. Plan your generations accordingly.*
+
+## 6. Fail-Safe Operations & Error Handling
+In the JS Fork (v0.0.18+), API errors are no longer obfuscated as generic HTTP 500 errors. If a quota is exceeded or a model is temporarily unavailable, the tool will return the exact API error string with an `isError: true` flag. 
+**Agent Directive:** If you receive a plan/support error or quota exceeded error, do not hallucinate external tools (like HeartMuLa). Instead, gracefully execute a failover by retrying the tool with the designated fallback model.
+
+## 7. Infrastructure Environment
 - **Hosting:** Railway (Containerized Environment)
 - **API Key Injection:** Managed securely via Railway Environment Variables (`${MINIMAX_API_KEY}`). The `config.yaml` intentionally leaves the key as a variable for the OpenClaw engine to interpolate at runtime.
 - **Working Directory:** `/data/.hermes`
 
 ## Conclusion
-You are not running a standard, out-of-the-box integration. You are operating a custom-tailored, highly optimized hybrid pipeline designed specifically to unlock the maximum potential of the Token Plan Max. Adhere strictly to the authorized models and embrace the flexibility of your JS Media Node.
+You are not running a standard, out-of-the-box integration. You are operating a custom-tailored, highly optimized hybrid pipeline designed specifically to unlock the maximum potential of the Token Plan Max. Adhere strictly to the authorized models, respect your quota limits, and embrace the flexibility of your JS Media Node.
