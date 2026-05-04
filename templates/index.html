@@ -1441,9 +1441,15 @@
           <div class="fs-main" :class="{show: fsFileOpen}">
             <div class="fs-header">
               <button class="btn sm fs-back-btn" style="display:none;" @click="fsFileOpen = false; fsIsMedia = false">← Back</button>
-              <div style="flex:1; display:flex; align-items:baseline; gap:12px; overflow:hidden;">
-                <span x-text="fsCurrentFile ? fsCurrentFile.split('/').pop() : 'Select a file'" style="font-weight:600; white-space:nowrap;"></span>
-                <span x-show="fsCurrentFile" x-text="fsCurrentFile ? fsCurrentFile.substring(0, fsCurrentFile.lastIndexOf('/')) + '/' : ''" style="font-size:12px; color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></span>
+              <div style="flex:1; display:flex; align-items:baseline; overflow:hidden;">
+                <template x-if="fsCurrentFile">
+                  <span style="font-size:13px; font-family:var(--font-mono); color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; user-select:all;" :title="fsCurrentFile">
+                    <span x-text="fsCurrentFile.substring(0, fsCurrentFile.lastIndexOf('/') + 1)"></span><span x-text="fsCurrentFile.split('/').pop()" style="color:var(--text); font-weight:600;"></span>
+                  </span>
+                </template>
+                <template x-if="!fsCurrentFile">
+                  <span style="font-weight:600; white-space:nowrap;">Select a file</span>
+                </template>
               </div>
               <template x-if="fsCurrentFile && !fsIsMedia">
                 <button class="btn sm primary" @click="fsSaveFile()" :disabled="fsSaving">
