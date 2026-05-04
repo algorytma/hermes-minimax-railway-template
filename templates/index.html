@@ -1389,13 +1389,21 @@
         <div class="fs-container">
           <!-- Sol Sütun: Klasör/Dosya Ağacı -->
           <div class="fs-sidebar" :class="{show: !fsFileOpen}" @click.window="fsActiveMenu = null">
-            <div class="fs-header">
-              <span x-text="fsCurrentDir" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:8px;">/</span>
-              <button class="btn sm" @click="fsCreateName=''; fsCreateType='file'; fsCreateModal=true" title="New File/Folder">➕</button>
-              <div style="display:flex; gap:6px; border-left:1px solid var(--border); padding-left:8px; margin-left:4px;">
-                <button class="btn sm" style="font-size:16px; padding:2px 8px;" @click="fsLoadDir('@WORKSPACE')" title="/.hermes/workspace">💻</button>
-                <button class="btn sm" style="font-size:16px; padding:2px 8px;" @click="fsLoadDir('@DATA')" title="/.hermes">🗄️</button>
-                <button class="btn sm" style="font-size:16px; padding:2px 8px;" @click="fsLoadDir('@ROOT')" title="Root (/)">🏠</button>
+            <div class="fs-header" style="flex-direction: column; align-items: stretch; gap: 10px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-weight:600; font-size:12px; color:var(--text);">Explorer</span>
+                <div style="display:flex; align-items:center;">
+                  <button class="btn sm" @click="fsCreateName=''; fsCreateType='file'; fsCreateModal=true" title="New File/Folder" style="margin-right:8px; padding:2px 8px;">➕</button>
+                  <div style="display:flex; gap:6px; border-left:1px solid var(--border); padding-left:8px;">
+                    <button class="btn sm" style="font-size:16px; padding:2px 8px;" @click="fsLoadDir('@WORKSPACE')" title="/.hermes/workspace">💻</button>
+                    <button class="btn sm" style="font-size:16px; padding:2px 8px;" @click="fsLoadDir('@DATA')" title="/.hermes">🗄️</button>
+                    <button class="btn sm" style="font-size:16px; padding:2px 8px;" @click="fsLoadDir('@ROOT')" title="Root (/)">🏠</button>
+                  </div>
+                </div>
+              </div>
+              <div style="background:var(--background); padding:6px 8px; border-radius:6px; border:1px solid var(--border); font-size:10px; color:var(--text-dim); display:flex; align-items:center;" :title="fsCurrentDir">
+                <span style="margin-right:6px; font-size:12px;">📍</span>
+                <span x-text="fsCurrentDir" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">/</span>
               </div>
             </div>
             <ul class="fs-list">
