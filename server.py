@@ -755,16 +755,48 @@ class Gateway:
                 self.logs.append(f"[error] Gateway exited (code {exit_code})")
 
     async def _is_gateway_alive(self) -> bool:
-        """Probe the Hermes dashboard API to see if a gateway is responding."""
+        """Check if a hermes gateway process is still running (possibly restarted externally).
+
+        Strategy:
+        1. Use `pgrep` to find running hermes gateway processes.
+        2. Fallback: check common PID/lock file locations and verify the PID is alive.
+        """
+        our_pid = self.proc.pid if self.proc else None
+
+        # Strategy 1: pgrep (most reliable on Linux/Railway)
         try:
-            async with httpx.AsyncClient(timeout=3) as c:
-                resp = await c.get(f"{HERMES_DASHBOARD_URL}/api/status")
-                if resp.status_code == 200:
-                    data = resp.json()
-                    # Dashboard reports gateway status; if it's running, it's alive
-                    return data.get("status") == "ok" or "gateway" in data
-        except Exception:
-            pass
+            proc = await asyncio.create_subprocess_exec(
+                "pgrep", "-f", "hermes.*gateway",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            stdout, _ = await proc.communicate()
+            if proc.returncode == 0 and stdout.strip():
+                # Filter out our own (now-dead) PID
+                pids = [int(p) for p in stdout.decode().strip().split("\n") if p.strip()]
+                alive = [p for p in pids if p != our_pid]
+                if alive:
+                    print(f"[gateway] pgrep found alive gateway PID(s): {alive}", flush=True)
+                    return True
+        except FileNotFoundError:
+            pass  # pgrep not available in container
+
+        # Strategy 2: check PID/lock files
+        for pid_path in [
+            Path(HERMES_HOME) / "gateway.pid",
+            Path(HERMES_HOME) / "gateway.lock",
+            Path("/tmp") / "hermes-gateway.pid",
+        ]:
+            try:
+                if pid_path.exists():
+                    pid = int(pid_path.read_text().strip().split("\n")[0])
+                    if pid != our_pid:
+                        os.kill(pid, 0)  # 0 = existence check, no signal sent
+                        print(f"[gateway] PID file {pid_path} → PID {pid} alive", flush=True)
+                        return True
+            except (ValueError, ProcessLookupError, PermissionError, OSError):
+                continue
+
         return False
 
     def status(self) -> dict:
