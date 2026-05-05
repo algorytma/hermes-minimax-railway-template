@@ -496,29 +496,28 @@
     gap: 12px;
   }
 
-  /* ── Toast ────────────────────────────────────────── */
+  /* ── Toast (unified) ───────────────────────────────── */
   #toast {
     position: fixed;
     bottom: 24px;
     right: 24px;
-    padding: 10px 18px;
+    padding: 12px 20px;
     border-radius: 8px;
     font-family: var(--font-mono);
     font-size: 13px;
     background: var(--surface2);
     border: 1px solid var(--border);
     color: var(--text);
-    display: none;
-    z-index: 999;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    transform: translateY(100px); opacity: 0;
+    transition: all 0.3s ease;
+    z-index: 9999;
+    pointer-events: none;
     max-width: 360px;
-    animation: slideIn 0.2s ease;
   }
-  @keyframes slideIn {
-    from { transform: translateY(10px); opacity: 0; }
-    to   { transform: translateY(0);    opacity: 1; }
-  }
-  #toast.ok  { border-color: var(--green); color: var(--green); }
-  #toast.err { border-color: var(--red);   color: var(--red);   }
+  #toast.show    { transform: translateY(0); opacity: 1; pointer-events: auto; }
+  #toast.success { border-color: var(--green); color: var(--green); }
+  #toast.error   { border-color: var(--red);   color: var(--red);   }
 
   /* ── Misc ─────────────────────────────────────────── */
   ::-webkit-scrollbar { width: 6px; }
@@ -904,19 +903,7 @@
     .mobile-overlay.open { display: block; opacity: 1; pointer-events: auto; }
   }
 
-  /* ── Toast ────────────────────────────────────────── */
-  #toast {
-    position: fixed; bottom: 20px; right: 20px;
-    background: var(--surface2); color: var(--text);
-    padding: 12px 20px; border-radius: 8px;
-    font-size: 13px; font-family: var(--font-sans);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.5); border: 1px solid var(--border);
-    transform: translateY(100px); opacity: 0; transition: all 0.3s ease;
-    z-index: 9999; pointer-events: none;
-  }
-  #toast.show { transform: translateY(0); opacity: 1; }
-  #toast.error { border-color: var(--red); color: var(--red); }
-  #toast.success { border-color: var(--green); color: var(--green); }
+  /* Toast CSS is defined once above — no duplicate needed here */
 </style>
 <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
@@ -2041,13 +2028,12 @@ function app() {
       return h>0?`${h}h ${m}m ${sec}s`:m>0?`${m}m ${sec}s`:`${sec}s`;
     },
     notify(msg, ok) {
-      const el = this.$refs.toast;
+      const el = document.getElementById('toast');
       if (!el) return;
       el.textContent = msg;
-      el.className = ok ? 'ok' : 'err';
-      el.style.display = 'block';
+      el.className = ok ? 'show success' : 'show error';
       clearTimeout(this._toastTimer);
-      this._toastTimer = setTimeout(() => { el.style.display = 'none'; }, 3000);
+      this._toastTimer = setTimeout(() => { el.className = ''; }, 3000);
     },
   };
 }

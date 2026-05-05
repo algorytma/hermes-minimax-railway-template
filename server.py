@@ -190,15 +190,43 @@ SOUL_MD_CONTENT = textwrap.dedent("""\
 """)
 
 
+# Known Hermes default identity snippets — if SOUL.md contains one of these,
+# it's the stock file and we should replace it with our custom identity.
+_HERMES_DEFAULT_MARKERS = [
+    "You are Hermes Agent, an intelligent AI assistant created by Nous Research",
+    "You are helpful, knowledgeable, and direct",
+]
+
+
 def ensure_soul_md() -> None:
-    """Seed SOUL.md if it does not exist yet.  Never overwrite user edits."""
+    """Seed SOUL.md with our custom identity.
+
+    Hermes auto-creates a default SOUL.md on first boot.  We detect
+    that stock file (by checking for known default markers) and replace
+    it with our MiniMax-tailored identity.  If the user has customised
+    SOUL.md (content differs from both our template and Hermes defaults),
+    we leave it untouched.
+    """
     soul_path = Path(HERMES_HOME) / "SOUL.md"
     if soul_path.exists():
-        print("[server] SOUL.md already exists — preserving user edits.", flush=True)
+        current = soul_path.read_text(encoding="utf-8")
+        # Check if it's the Hermes default — replace with ours
+        is_hermes_default = any(marker in current for marker in _HERMES_DEFAULT_MARKERS)
+        # Check if it's already our content
+        is_ours = "MiniMax Native Integration" in current
+        if is_ours:
+            print("[server] SOUL.md already has custom identity — preserving.", flush=True)
+            return
+        if is_hermes_default:
+            print("[server] Replacing Hermes default SOUL.md with custom identity.", flush=True)
+            soul_path.write_text(SOUL_MD_CONTENT)
+            return
+        # Unknown custom content — user edited it, don't touch
+        print("[server] SOUL.md has user-customised content — preserving.", flush=True)
         return
     soul_path.parent.mkdir(parents=True, exist_ok=True)
     soul_path.write_text(SOUL_MD_CONTENT)
-    print("[server] Created SOUL.md with default agent identity.", flush=True)
+    print("[server] Created SOUL.md with custom agent identity.", flush=True)
 
 
 # ── Persistent agent docs under /data/.hermes/docs/ ──────────────────────────
