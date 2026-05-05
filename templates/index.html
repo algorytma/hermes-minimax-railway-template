@@ -1401,7 +1401,7 @@
                   </div>
                 </div>
               </div>
-              <div style="background:var(--background); padding:6px 8px; border-radius:6px; border:1px solid var(--border); font-size:10px; color:var(--text-dim); display:flex; align-items:center;" :title="fsCurrentDir">
+              <div @click="navigator.clipboard.writeText(fsCurrentDir); toastOk('Directory path copied to clipboard!')" style="background:var(--background); padding:6px 8px; border-radius:6px; border:1px solid var(--border); font-size:10px; color:var(--text-dim); display:flex; align-items:center; cursor:pointer;" :title="'Click to copy: ' + fsCurrentDir">
                 <span style="margin-right:6px; font-size:12px;">📍</span>
                 <span x-text="fsCurrentDir" style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">/</span>
               </div>
@@ -1443,7 +1443,7 @@
               <button class="btn sm fs-back-btn" style="display:none;" @click="fsFileOpen = false; fsIsMedia = false">← Back</button>
               <div style="flex:1; display:flex; align-items:baseline; overflow:hidden;">
                 <template x-if="fsCurrentFile">
-                  <span style="font-size:13px; font-family:var(--font-mono); color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; user-select:all;" :title="fsCurrentFile">
+                  <span @click="navigator.clipboard.writeText(fsCurrentFile); toastOk('File path copied to clipboard!')" style="font-size:13px; font-family:var(--font-mono); color:var(--text-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer;" :title="'Click to copy: ' + fsCurrentFile">
                     <span x-text="fsCurrentFile.substring(0, fsCurrentFile.lastIndexOf('/') + 1)"></span><span x-text="fsCurrentFile.split('/').pop()" style="color:var(--text); font-weight:600;"></span>
                   </span>
                 </template>
