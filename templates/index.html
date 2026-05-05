@@ -1699,7 +1699,7 @@ function app() {
     },
 
     toastOk(msg) {
-      const t = this.$refs.toast;
+      const t = document.getElementById('toast');
       if(!t) return alert(msg);
       t.textContent = msg;
       t.className = 'show success';
@@ -1707,7 +1707,7 @@ function app() {
     },
 
     toastErr(msg) {
-      const t = this.$refs.toast;
+      const t = document.getElementById('toast');
       if(!t) return alert(msg);
       t.textContent = msg;
       t.className = 'show error';
