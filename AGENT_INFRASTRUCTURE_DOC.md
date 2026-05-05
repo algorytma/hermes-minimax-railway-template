@@ -1,4 +1,4 @@
-# HERMES: INFRASTRUCTURE & ARCHITECTURE DOCUMENTATION (v1.4)
+# HERMES: INFRASTRUCTURE & ARCHITECTURE DOCUMENTATION (v1.5)
 
 ## 1. Introduction
 This document serves as the self-awareness and architectural blueprint for the Hermes autonomous agent. It outlines the historical context, the challenges faced with official integrations, and the current Hybrid MCP (Model Context Protocol) architecture running on Railway.
@@ -54,7 +54,7 @@ In the JS Fork (v0.0.18+), API errors are no longer obfuscated as generic HTTP 5
 
 ## 7. Infrastructure Environment
 - **Hosting:** Railway (Containerized Environment)
-- **API Key Injection:** Managed securely via Railway Environment Variables (`${MINIMAX_API_KEY}`). The `config.yaml` intentionally leaves the key as a variable for the OpenClaw engine to interpolate at runtime.
+- **API Key Injection:** Managed securely via Railway Environment Variables (`${MINIMAX_API_KEY}`). The `config.yaml` intentionally leaves the key as a variable for the Hermes engine to interpolate at runtime.
 - **Working Directory:** `/data/.hermes`
 
 ## Conclusion
@@ -90,3 +90,56 @@ If a new deployment breaks the agent (e.g., due to an unstable upstream commit o
 2. **Deployments Tab:** Navigate to the "Deployments" tab to see your deployment history.
 3. **Rollback:** Find the last known working deployment (it will have a green success badge). Click the three dots (`...`) next to it and select **Redeploy** or **Rollback**.
 4. **Instant Restore:** Railway will instantly spin up the Docker image from that exact point in time. Because our `/data` folder is mounted as a persistent volume, **your files, memory, and database are completely safe** during a rollback. The rollback only reverts the application code, not your data.
+
+## 11. Configuration Persistence & SOUL.md (v1.5 Update)
+
+### The Problem (Pre-v1.5)
+Prior to v1.5, `config.yaml` was **overwritten from scratch** on every gateway start using an f-string template. This meant any user-customised settings (timezone, compression thresholds, etc.) were lost after every Railway redeployment.
+
+Additionally, the agent's system prompt was **hardcoded** in Python source code inside `write_config_yaml()` as a bogus `agent.system_prompt` config key — which does not exist in the official Hermes config schema.
+
+### The Fix: Merge-based Config + SOUL.md
+
+**Config Persistence:**
+- `write_config_yaml()` now uses **PyYAML** to parse the existing `config.yaml` (if any) before writing.
+- Only keys we own (`model`, `terminal`, `agent.max_turns`, `data_dir`, `mcp_servers`) are updated.
+- All other user-set keys (timezone, compression, auxiliary models, etc.) are **preserved** across restarts.
+- Legacy parameters (`agent.max_iterations`, `agent.system_prompt`) are cleaned up automatically.
+
+**SOUL.md Migration:**
+- The hardcoded system prompt was removed from `config.yaml` generation.
+- A new `ensure_soul_md()` function creates `$HERMES_HOME/SOUL.md` on first run.
+- This aligns with Hermes's official prompt assembly: `SOUL.md` occupies **slot #1** in the system prompt.
+- If the user edits `SOUL.md`, it is **never overwritten** — matching upstream Hermes behaviour.
+
+**Agent Self-Knowledge Docs:**
+- Categorised documentation files are seeded under `/data/.hermes/docs/`:
+  - `infra/platform_info.md` — Hosting, directories, config paths
+  - `model/model_routing.md` — Model names, quotas, Token Plan details
+  - `mcp/mcp_architecture.md` — Hybrid MCP pipeline architecture
+  - `history/project_origins.md` — Repository lineage and upgrade strategy
+- These files are read **on-demand** by the agent, avoiding context bloat.
+- Existing files are never overwritten — user edits are preserved.
+
+### Architecture Diagram (v1.5)
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Railway Container                        │
+│                                                             │
+│  ┌──────────────┐    ┌───────────────────────────────────┐  │
+│  │  server.py   │───▶│  $HERMES_HOME/                    │  │
+│  │  (Admin UI)  │    │  ├── SOUL.md        (Agent Soul)  │  │
+│  │              │    │  ├── config.yaml    (Merged YAML) │  │
+│  │  ensure_*()  │    │  ├── .env           (API keys)    │  │
+│  │  at startup  │    │  ├── docs/                        │  │
+│  └──────┬───────┘    │  │   ├── infra/platform_info.md   │  │
+│         │            │  │   ├── model/model_routing.md    │  │
+│         ▼            │  │   ├── mcp/mcp_architecture.md   │  │
+│  ┌──────────────┐    │  │   └── history/project_origins   │  │
+│  │hermes gateway│    │  ├── memories/                     │  │
+│  │  (Agent)     │◀───│  └── mcp-output/                  │  │
+│  └──────────────┘    └───────────────────────────────────┘  │
+│                                                             │
+│                      /data (Persistent Volume)               │
+└─────────────────────────────────────────────────────────────┘
+```

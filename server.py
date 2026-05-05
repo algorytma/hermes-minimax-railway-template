@@ -28,11 +28,13 @@ import re
 import secrets
 import signal
 import time
+import textwrap
 from collections import deque
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
+import yaml
 import websockets
 import websockets.exceptions
 from starlette.applications import Starlette
@@ -158,72 +160,248 @@ def read_env(path: Path) -> dict[str, str]:
     return out
 
 
-def write_config_yaml(data: dict[str, str]) -> None:
-    """Write a minimal config.yaml so hermes picks up the model and provider."""
-    model = data.get("LLM_MODEL", "")
-    is_token_plan = data.get("MINIMAX_TOKEN_PLAN_ENABLED", "").lower() == "true"
-    
-    # Logic to force native provider if MiniMax key is present
-    provider = "auto"
-    if data.get("MINIMAX_API_KEY"):
-        provider = "minimax"
-        # Strip provider prefix if the user followed OpenRouter format
-        if model.startswith("minimax/"):
-            model = model.replace("minimax/", "")
-    
-    config_path = Path(HERMES_HOME) / "config.yaml"
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Base configuration
-    yaml_content = f"""\
-model:
-  default: "{model}"
-  provider: "{provider}"
+# ── SOUL.md — Hermes native agent identity ───────────────────────────────────
+# Hermes reads $HERMES_HOME/SOUL.md as the agent's primary identity (slot #1 in
+# the system prompt).  We seed this file once; if the user edits it, we never
+# overwrite it — matching upstream Hermes behaviour.
+SOUL_MD_CONTENT = textwrap.dedent("""\
+    # Personality
 
-terminal:
-  backend: "local"
-  timeout: 60
-  cwd: "/tmp"
-
-agent:
-  max_iterations: 50
-  system_prompt: |
     You are an expert Hermes AI assistant using the Official MiniMax Native Integration (Token Plan Max).
+
+    ## Tool Model Mapping
+
     CRITICAL: Always explicitly specify these models when using tools:
     - Audio/TTS: "speech-2.8-hd"
     - Video: "Hailuo-2.3-Fast-768P-6s"
     - Music: "music-2.6"
     - Image: "image-01"
+
+    ## Error Handling
+
     If a tool fails with "plan support" error, retry once with model=null.
 
-data_dir: "{HERMES_HOME}"
-"""
+    ## Communication Style
 
-    # Add MCP servers if Token Plan is enabled
+    - Be direct and concise
+    - Prefer substance over filler
+    - Admit uncertainty plainly
+    - Optimize for truth, clarity, and usefulness
+""")
+
+
+def ensure_soul_md() -> None:
+    """Seed SOUL.md if it does not exist yet.  Never overwrite user edits."""
+    soul_path = Path(HERMES_HOME) / "SOUL.md"
+    if soul_path.exists():
+        print("[server] SOUL.md already exists — preserving user edits.", flush=True)
+        return
+    soul_path.parent.mkdir(parents=True, exist_ok=True)
+    soul_path.write_text(SOUL_MD_CONTENT)
+    print("[server] Created SOUL.md with default agent identity.", flush=True)
+
+
+# ── Persistent agent docs under /data/.hermes/docs/ ──────────────────────────
+# These files give the agent categorised self-knowledge it can read on demand
+# without bloating the system prompt.  Each file covers one topic.
+
+AGENT_DOCS: dict[str, tuple[str, str]] = {
+    # (relative_path, content)  — relative to HERMES_HOME/docs/
+    "infra/platform_info.md": (
+        "Platform & infrastructure details",
+        textwrap.dedent("""\
+            # Platform & Infrastructure
+
+            | Key | Value |
+            |-----|-------|
+            | Hosting | Railway (Docker container) |
+            | Persistent Volume | `/data` — survives redeployments |
+            | Working Directory | `/data/.hermes` |
+            | Config File | `/data/.hermes/config.yaml` |
+            | Agent Identity | `/data/.hermes/SOUL.md` (Hermes native, slot #1) |
+            | API Key Injection | Railway env vars → `.env` file |
+            | Docker Strategy | `HERMES_REF` build arg pins upstream version |
+            | Admin UI | Custom Starlette wrapper at `/setup` |
+
+            ## Key Directories
+            - `/data/.hermes/mcp-output/` — Generated media files
+            - `/data/.hermes/memories/` — Persistent memory (MEMORY.md, USER.md)
+            - `/data/.hermes/sessions/` — Gateway session data
+            - `/data/.hermes/docs/` — This documentation tree
+        """)
+    ),
+    "model/model_routing.md": (
+        "Model routing & Token Plan Max details",
+        textwrap.dedent("""\
+            # Model Routing & Token Plan Max
+
+            ## Provider: MiniMax (Native)
+            This agent uses the MiniMax Native Integration with Token Plan Max.
+            The provider is set to `minimax` in config.yaml when MINIMAX_API_KEY is present.
+
+            ## Authorised Media Models
+            CRITICAL — always explicitly pass these model names to MCP tools:
+
+            | Domain | Model | Fallback |
+            |--------|-------|----------|
+            | TTS | `speech-2.8-hd` | `speech-01` |
+            | Video | `Hailuo-2.3-Fast-768P-6s` | `Hailuo-2.3-768P-6s` |
+            | Music | `music-2.6` | `music-2.5` |
+            | Lyrics | `lyrics_generation` | — |
+            | Music Cover | `music-cover` | — |
+            | Image | `image-01` | — |
+
+            ## Daily Quotas
+            | Domain | Model | Limit |
+            |--------|-------|-------|
+            | Research | `coding-plan-search` | 15,000 / 5h |
+            | VLM | `coding-plan-vlm` | 15,000 / 5h |
+            | Image | `image-01` | 120 / day |
+            | TTS | `speech-2.8-hd` | 11,000 / day |
+            | Music | `music-2.6` | 100 / day |
+            | Music | `music-2.5` | 4 / day |
+            | Video | `Hailuo-2.3-Fast-768P-6s` | 2 / day |
+            | Video | `Hailuo-2.3-768P-6s` | 2 / day |
+        """)
+    ),
+    "mcp/mcp_architecture.md": (
+        "MCP server architecture (hybrid pipeline)",
+        textwrap.dedent("""\
+            # Hybrid MCP Architecture
+
+            ## Research Node (Official Python)
+            - Command: `uvx minimax-coding-plan-mcp`
+            - Handles: Web Search, Vision/VLM
+            - These tools work without model parameter conflicts.
+
+            ## Media Node (Custom JS Fork)
+            - Command: `npx -y algorytma/MiniMax-MCP-JS`
+            - Handles: TTS, Video, Music, Image generation
+            - Rigid enum validations removed; accepts any model string.
+            - Local storage bypass: media saved to `/data/.hermes/mcp-output/`
+            - Error reporting: returns exact API error with `isError: true` flag.
+
+            ## Error Handling
+            If a tool returns a plan/support or quota error:
+            1. Do NOT hallucinate external tools.
+            2. Retry with the designated fallback model.
+            3. If still failing, inform the user about quota limits.
+        """)
+    ),
+    "history/project_origins.md": (
+        "Repository lineage and upstream references",
+        textwrap.dedent("""\
+            # Project Origins & Repositories
+
+            | Component | Repository | Role |
+            |-----------|-----------|------|
+            | Core Agent | `NousResearch/hermes-agent` | Intelligence & orchestration engine |
+            | Media MCP | `algorytma/MiniMax-MCP-JS` | Custom JS fork — removed hardcoded models |
+            | Base Template | `praveen-ks-2001/hermes-agent-template` | Original Railway wrapper |
+            | This Repo | `algorytma/hermes-minimax-railway-template` | Unified production environment |
+
+            ## Upgrade Strategy
+            - `HERMES_REF` in Dockerfile pins the upstream agent version.
+            - Default `main` = bleeding edge; set to tag (e.g. `v2026.4.23`) for stability.
+            - Railway rollback: Deployments tab → find green badge → Redeploy.
+            - `/data` volume is preserved during rollbacks.
+        """)
+    ),
+}
+
+
+def ensure_agent_docs() -> None:
+    """Seed agent documentation files.  Existing files are never overwritten."""
+    docs_dir = Path(HERMES_HOME) / "docs"
+    created = 0
+    for rel_path, (desc, content) in AGENT_DOCS.items():
+        full_path = docs_dir / rel_path
+        if full_path.exists():
+            continue
+        full_path.parent.mkdir(parents=True, exist_ok=True)
+        full_path.write_text(content)
+        created += 1
+    if created:
+        print(f"[server] Seeded {created} agent doc(s) under {docs_dir}", flush=True)
+
+
+# ── config.yaml helpers ───────────────────────────────────────────────────────
+def write_config_yaml(data: dict[str, str]) -> None:
+    """Merge-write config.yaml: update model/provider/MCP settings while
+    preserving user-customised keys (timezone, compression, etc.).
+
+    Uses PyYAML to parse the existing file (if any) and deep-merge only the
+    keys we own.  Everything else the user set via the Hermes dashboard or
+    by hand-editing the file survives container restarts and redeployments.
+    """
+    model = data.get("LLM_MODEL", "")
+    is_token_plan = data.get("MINIMAX_TOKEN_PLAN_ENABLED", "").lower() == "true"
+
+    # Logic to force native provider if MiniMax key is present
+    provider = "auto"
+    if data.get("MINIMAX_API_KEY"):
+        provider = "minimax"
+        if model.startswith("minimax/"):
+            model = model.replace("minimax/", "")
+
+    config_path = Path(HERMES_HOME) / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # ── Load existing config (preserve user settings) ─────────────────
+    existing: dict = {}
+    if config_path.exists():
+        try:
+            existing = yaml.safe_load(config_path.read_text()) or {}
+        except yaml.YAMLError:
+            print("[server] WARNING: config.yaml parse error — recreating.", flush=True)
+            existing = {}
+
+    # ── Model & provider (always overwrite — comes from admin UI) ─────
+    existing.setdefault("model", {})
+    existing["model"]["default"] = model
+    existing["model"]["provider"] = provider
+
+    # ── Terminal defaults (only if not yet set) ───────────────────────
+    existing.setdefault("terminal", {})
+    existing["terminal"].setdefault("backend", "local")
+    existing["terminal"].setdefault("timeout", 60)
+    existing["terminal"].setdefault("cwd", "/tmp")
+
+    # ── Agent (official Hermes param name is max_turns, not max_iterations)
+    existing.setdefault("agent", {})
+    existing["agent"].setdefault("max_turns", 90)  # Hermes default
+    # Clean up legacy param if present
+    existing["agent"].pop("max_iterations", None)
+    existing["agent"].pop("system_prompt", None)  # Moved to SOUL.md
+
+    # ── data_dir ──────────────────────────────────────────────────────
+    existing["data_dir"] = HERMES_HOME
+
+    # ── MCP servers (Token Plan) ──────────────────────────────────────
     if is_token_plan:
-        # Create output directory for media
         (Path(HERMES_HOME) / "mcp-output").mkdir(parents=True, exist_ok=True)
-        
-        mcp_block = f"""
-mcp_servers:
-  minimax-research:
-    command: "uvx"
-    args: ["minimax-coding-plan-mcp"]
-    env:
-      MINIMAX_API_KEY: "${{MINIMAX_API_KEY}}"
-      MINIMAX_API_HOST: "https://api.minimax.io"
+        existing["mcp_servers"] = {
+            "minimax-research": {
+                "command": "uvx",
+                "args": ["minimax-coding-plan-mcp"],
+                "env": {
+                    "MINIMAX_API_KEY": "${MINIMAX_API_KEY}",
+                    "MINIMAX_API_HOST": "https://api.minimax.io",
+                },
+            },
+            "minimax-media": {
+                "command": "npx",
+                "args": ["-y", "algorytma/MiniMax-MCP-JS"],
+                "env": {
+                    "MINIMAX_API_KEY": "${MINIMAX_API_KEY}",
+                    "MINIMAX_API_HOST": "https://api.minimax.io",
+                    "MINIMAX_MCP_BASE_PATH": "/data/.hermes/mcp-output",
+                },
+            },
+        }
 
-  minimax-media:
-    command: "npx"
-    args: ["-y", "algorytma/MiniMax-MCP-JS"]
-    env:
-      MINIMAX_API_KEY: "${{MINIMAX_API_KEY}}"
-      MINIMAX_API_HOST: "https://api.minimax.io"
-      MINIMAX_MCP_BASE_PATH: "/data/.hermes/mcp-output"
-"""
-        yaml_content += mcp_block
-
-    config_path.write_text(yaml_content)
+    config_path.write_text(yaml.dump(existing, default_flow_style=False, sort_keys=False))
+    print(f"[server] config.yaml updated (model={model}, provider={provider})", flush=True)
 
 
 def write_env(path: Path, data: dict[str, str]) -> None:
@@ -490,7 +668,10 @@ class Gateway:
             model = env.get("LLM_MODEL", "")
             provider_key = next((env.get(k, "") for k in PROVIDER_KEYS if env.get(k)), "")
             print(f"[gateway] model={model or '⚠ NOT SET'} | provider_key={'set' if provider_key else '⚠ NOT SET'}", flush=True)
-            # Write config.yaml so hermes picks up the model (env vars alone aren't always enough)
+            # Seed SOUL.md (agent identity) and agent docs on first run
+            ensure_soul_md()
+            ensure_agent_docs()
+            # Write/merge config.yaml so hermes picks up the model
             write_config_yaml(read_env(ENV_FILE))
             self.proc = await asyncio.create_subprocess_exec(
                 "hermes", "gateway", "run", "--replace",

@@ -7,3 +7,6 @@ httpx>=0.27.0
 # hermes's /api/pty, /api/ws, /api/events endpoints. httpx does not speak
 # WebSockets, so we need a dedicated client library.
 websockets>=12.0
+# YAML parser for merge-based config.yaml management (preserves user settings
+# across container restarts instead of overwriting with f-string templates).
+PyYAML>=6.0
