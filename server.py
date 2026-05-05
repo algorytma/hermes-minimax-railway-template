@@ -739,9 +739,33 @@ class Gateway:
             line = ANSI_ESCAPE.sub("", raw.decode(errors="replace").rstrip())
             self.logs.append(line)
             print(f"[gateway] {line}", flush=True)
+        # Process exited — but it might have been replaced externally
+        # (e.g. Hermes UI restart).  Give the replacement ~2s to bind.
         if self.state == "running":
-            self.state = "error"
-            self.logs.append(f"[error] Gateway exited (code {self.proc.returncode})")
+            exit_code = self.proc.returncode
+            await asyncio.sleep(2)
+            if await self._is_gateway_alive():
+                self.logs.append("[info] Gateway was restarted externally — still running.")
+                print("[gateway] External restart detected — gateway alive on dashboard API.", flush=True)
+                # Keep state as "running" but clear our proc reference
+                # so start() will re-attach if the user clicks Start/Restart
+                self.proc = None
+            else:
+                self.state = "error"
+                self.logs.append(f"[error] Gateway exited (code {exit_code})")
+
+    async def _is_gateway_alive(self) -> bool:
+        """Probe the Hermes dashboard API to see if a gateway is responding."""
+        try:
+            async with httpx.AsyncClient(timeout=3) as c:
+                resp = await c.get(f"{HERMES_DASHBOARD_URL}/api/status")
+                if resp.status_code == 200:
+                    data = resp.json()
+                    # Dashboard reports gateway status; if it's running, it's alive
+                    return data.get("status") == "ok" or "gateway" in data
+        except Exception:
+            pass
+        return False
 
     def status(self) -> dict:
         uptime = int(time.time() - self.started_at) if self.started_at and self.state == "running" else None
