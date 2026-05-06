@@ -148,7 +148,18 @@ def read_env(path: Path) -> dict[str, str]:
     if not path.exists():
         return {}
     out = {}
-    for line in path.read_text().splitlines():
+    try:
+        # Try UTF-8 first
+        content = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        try:
+            # Fallback to Turkish Windows encoding
+            content = path.read_text(encoding="cp1254")
+        except UnicodeDecodeError:
+            # Last resort: replace bad bytes
+            content = path.read_text(encoding="utf-8", errors="replace")
+
+    for line in content.splitlines():
         line = line.strip()
         if not line or line.startswith("#") or "=" not in line:
             continue
@@ -216,7 +227,14 @@ def ensure_soul_md() -> None:
     """
     soul_path = Path(HERMES_HOME) / "SOUL.md"
     if soul_path.exists():
-        current = soul_path.read_text(encoding="utf-8")
+        try:
+            current = soul_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            try:
+                current = soul_path.read_text(encoding="cp1254")
+            except UnicodeDecodeError:
+                current = soul_path.read_text(encoding="utf-8", errors="replace")
+
         # Check if it's the Hermes default — replace with ours
         is_hermes_default = any(marker in current for marker in _HERMES_DEFAULT_MARKERS)
         # Check if it's already our content
@@ -398,10 +416,17 @@ def write_config_yaml(data: dict[str, str]) -> None:
     existing: dict = {}
     if config_path.exists():
         try:
-            existing = yaml.safe_load(config_path.read_text()) or {}
-        except yaml.YAMLError:
-            print("[server] WARNING: config.yaml parse error — recreating.", flush=True)
-            existing = {}
+            # Try UTF-8
+            raw_config = config_path.read_text(encoding="utf-8")
+            existing = yaml.safe_load(raw_config) or {}
+        except (yaml.YAMLError, UnicodeDecodeError):
+            try:
+                # Fallback to Turkish Windows
+                raw_config = config_path.read_text(encoding="cp1254")
+                existing = yaml.safe_load(raw_config) or {}
+            except Exception:
+                print("[server] WARNING: config.yaml parse error — recreating.", flush=True)
+                existing = {}
 
     # ── Model & provider (always overwrite — comes from admin UI) ─────
     existing.setdefault("model", {})
