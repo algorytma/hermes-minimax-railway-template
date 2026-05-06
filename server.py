@@ -452,7 +452,8 @@ def write_config_yaml(data: dict[str, str]) -> None:
     # ── MCP servers (Token Plan) ──────────────────────────────────────
     if is_token_plan:
         (Path(HERMES_HOME) / "mcp-output").mkdir(parents=True, exist_ok=True)
-        existing["mcp_servers"] = {
+        existing.setdefault("mcp_servers", {})
+        existing["mcp_servers"].update({
             "minimax-research": {
                 "command": "uvx",
                 "args": ["minimax-coding-plan-mcp"],
@@ -470,16 +471,20 @@ def write_config_yaml(data: dict[str, str]) -> None:
                     "MINIMAX_MCP_BASE_PATH": "/data/.hermes/mcp-output",
                 },
             },
-        }
+        })
 
     # ── Auxiliary overrides (MiniMax text-only: disable builtin vision) ────
     # MiniMax /v1/chat/completions does not support multimodal input.
     # Vision is handled by minimax-research MCP (coding-plan-vlm model).
     if data.get("MINIMAX_API_KEY"):
         existing.setdefault("auxiliary", {})
-        existing["auxiliary"]["vision"] = {
-            "provider": "none",
-        }
+        # Merge vision block instead of overwriting it if it exists
+        vision_cfg = existing["auxiliary"].setdefault("vision", {})
+        if isinstance(vision_cfg, dict):
+            vision_cfg["provider"] = "none"
+        else:
+            # If it's something else (unlikely), force it
+            existing["auxiliary"]["vision"] = {"provider": "none"}
 
     config_path.write_text(yaml.dump(existing, default_flow_style=False, sort_keys=False))
     print(f"[server] config.yaml updated (model={model}, provider={provider})", flush=True)
