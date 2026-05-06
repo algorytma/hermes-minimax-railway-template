@@ -177,6 +177,13 @@ SOUL_MD_CONTENT = textwrap.dedent("""\
     - Music: "music-2.6"
     - Image: "image-01"
 
+    ## Image Understanding
+
+    When a user sends an image or asks you to analyze/describe an image:
+    - ALWAYS use `mcp_minimax_research_understand_image` tool (MiniMax Research MCP)
+    - NEVER use the builtin `vision_analyze` tool — our provider does not support multimodal via /v1
+    - If `mcp_minimax_research_understand_image` fails, inform the user that image analysis is temporarily unavailable
+
     ## Error Handling
 
     If a tool fails with "plan support" error, retry once with model=null.
@@ -215,6 +222,12 @@ def ensure_soul_md() -> None:
         # Check if it's already our content
         is_ours = "MiniMax Native Integration" in current
         if is_ours:
+            # v1.6: Update SOUL.md if it's missing the vision routing directive
+            needs_vision_update = "mcp_minimax_research_understand_image" not in current
+            if needs_vision_update:
+                print("[server] Updating SOUL.md with vision routing directives.", flush=True)
+                soul_path.write_text(SOUL_MD_CONTENT)
+                return
             print("[server] SOUL.md already has custom identity — preserving.", flush=True)
             return
         if is_hermes_default:
@@ -299,7 +312,7 @@ AGENT_DOCS: dict[str, tuple[str, str]] = {
 
             ## Research Node (Official Python)
             - Command: `uvx minimax-coding-plan-mcp`
-            - Handles: Web Search, Vision/VLM
+            - Handles: Web Search, Vision/VLM (Image Understanding)
             - These tools work without model parameter conflicts.
 
             ## Media Node (Custom JS Fork)
@@ -308,6 +321,12 @@ AGENT_DOCS: dict[str, tuple[str, str]] = {
             - Rigid enum validations removed; accepts any model string.
             - Local storage bypass: media saved to `/data/.hermes/mcp-output/`
             - Error reporting: returns exact API error with `isError: true` flag.
+
+            ## Vision / Image Understanding
+            - Tool: `mcp_minimax_research_understand_image` (via minimax-research MCP)
+            - Model: `coding-plan-vlm` (15,000 daily quota / 5h cycle)
+            - IMPORTANT: Do NOT use builtin `vision_analyze` — MiniMax /v1 is text-only
+            - The builtin vision tool is disabled via `auxiliary.vision.provider: none`
 
             ## Error Handling
             If a tool returns a plan/support or quota error:
@@ -426,6 +445,15 @@ def write_config_yaml(data: dict[str, str]) -> None:
                     "MINIMAX_MCP_BASE_PATH": "/data/.hermes/mcp-output",
                 },
             },
+        }
+
+    # ── Auxiliary overrides (MiniMax text-only: disable builtin vision) ────
+    # MiniMax /v1/chat/completions does not support multimodal input.
+    # Vision is handled by minimax-research MCP (coding-plan-vlm model).
+    if data.get("MINIMAX_API_KEY"):
+        existing.setdefault("auxiliary", {})
+        existing["auxiliary"]["vision"] = {
+            "provider": "none",
         }
 
     config_path.write_text(yaml.dump(existing, default_flow_style=False, sort_keys=False))
