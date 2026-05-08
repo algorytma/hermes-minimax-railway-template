@@ -83,6 +83,9 @@ else:
 # (key, label, category, is_secret)
 ENV_VARS = [
     ("LLM_MODEL",               "Model",                    "model",     False),
+    ("LLM_FALLBACK_ENABLED",     "Enable Fallback",          "model",     False),
+    ("LLM_FALLBACK_MODEL",       "Fallback Model",           "model",     False),
+    ("LLM_FALLBACK_PROVIDER",    "Fallback Provider",        "model",     False),
     ("OPENROUTER_API_KEY",       "OpenRouter",               "provider",  True),
     ("DEEPSEEK_API_KEY",         "DeepSeek",                 "provider",  True),
     ("DASHSCOPE_API_KEY",        "DashScope",                "provider",  True),
@@ -432,6 +435,30 @@ def write_config_yaml(data: dict[str, str]) -> None:
     existing.setdefault("model", {})
     existing["model"]["default"] = model
     existing["model"]["provider"] = provider
+
+    # ── Fallback Model Support ───────────────────────────────────────
+    fallback_enabled = data.get("LLM_FALLBACK_ENABLED", "").lower() == "true"
+    fallback_model = data.get("LLM_FALLBACK_MODEL", "")
+    fallback_prov_raw = data.get("LLM_FALLBACK_PROVIDER", "").lower()
+
+    if fallback_enabled and fallback_model:
+        # Map human-readable provider to hermes internal provider name
+        f_provider = "auto"
+        if "openrouter" in fallback_prov_raw: f_provider = "openrouter"
+        elif "deepseek" in fallback_prov_raw: f_provider = "deepseek"
+        elif "minimax" in fallback_prov_raw:  f_provider = "minimax"
+        elif "google" in fallback_prov_raw or "gemini" in fallback_prov_raw: f_provider = "google"
+        elif "dashscope" in fallback_prov_raw: f_provider = "dashscope"
+        elif "glm" in fallback_prov_raw:       f_provider = "glm"
+        elif "openai" in fallback_prov_raw:    f_provider = "openai"
+        elif "anthropic" in fallback_prov_raw: f_provider = "anthropic"
+        elif "nvidia" in fallback_prov_raw:    f_provider = "nvidia"
+        
+        existing["model"]["fallbacks"] = [
+            {"model": fallback_model, "provider": f_provider}
+        ]
+    else:
+        existing["model"].pop("fallbacks", None)
 
     # ── Terminal defaults (only if not yet set) ───────────────────────
     existing.setdefault("terminal", {})
