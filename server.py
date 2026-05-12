@@ -1620,18 +1620,26 @@ async def ws_proxy(websocket: WebSocket) -> None:
 def get_current_hermes_version():
     """Parses Dockerfile to find the current HERMES_REF."""
     try:
-        # Try both relative to file and relative to CWD
-        paths = [
+        # Check environment first if passed during build
+        if os.environ.get("HERMES_REF"):
+            return os.environ.get("HERMES_REF")
+            
+        # Try multiple path resolutions
+        search_paths = [
             Path(__file__).parent / "Dockerfile",
-            Path("Dockerfile")
+            Path("Dockerfile"),
+            Path("/app/Dockerfile"),
+            Path("/workspace/Dockerfile")
         ]
-        for dockerfile_path in paths:
-            if dockerfile_path.exists():
-                content = dockerfile_path.read_text(encoding="utf-8")
-                # More lenient regex for various formats
-                match = re.search(r"ARG\s+HERMES_REF\s*=\s*([^\s#\n\r]+)", content)
-                if match:
-                    return match.group(1).strip()
+        for p in search_paths:
+            if p.exists():
+                content = p.read_text(encoding="utf-8", errors="ignore")
+                # Find the ARG line anywhere
+                lines = content.splitlines()
+                for line in lines:
+                    if "HERMES_REF=" in line and not line.strip().startswith("#"):
+                        v = line.split("=")[-1].strip()
+                        return v
         return "unknown"
     except Exception:
         return "unknown"
@@ -1675,28 +1683,49 @@ async def api_version_analyze(request: Request):
     data = await request.json()
     changelog = data.get("changelog", "")
     
-    # Load manifest
-    manifest_path = Path(__file__).parent / "docs" / "INFRA_MANIFEST.md"
-    manifest = manifest_path.read_text(encoding="utf-8") if manifest_path.exists() else ""
-    
-    # Analyze risks based on changelog keywords
     risks = []
     c = changelog.lower()
+    
     if "breaking" in c:
-        risks.append("⚠️ **BREAKING CHANGES:** Upstream mentions breaking changes. Manual verification of custom MCPs is highly recommended.")
+        risks.append({
+            "level": "önemli",
+            "icon": "🔴",
+            "text": "KRİTİK: Upstream sürümünde geriye dönük uyumsuz (breaking) değişiklikler tespit edildi.",
+            "action": "Güncelleme sonrası MiniMax MCP bağlantılarınızı manuel kontrol etmelisiniz."
+        })
     if "mcp" in c or "tool" in c:
-        risks.append("🔌 **Tooling/MCP Update:** Protocol changes detected. Verify MiniMax Token Plan logic for potential token usage spikes.")
-    if "persist" in c or "vol" in c or "state" in c:
-        risks.append("💾 **Persistence:** Upstream changed state handling. Check if your /data mounts are still mapping to the expected paths.")
-    if "model" in c or "system" in c:
-        risks.append("🧠 **Core Logic:** Personality or system prompt updates found. Your custom SOUL.md might need adjustment.")
+        risks.append({
+            "level": "uyari",
+            "icon": "🟠",
+            "text": "MCP Protokol Güncellemesi: Araç kullanım mantığı güncellenmiş olabilir.",
+            "action": "MiniMax Token Plan ayarlarınızın hala geçerli olduğunu teyit edin."
+        })
+    if "persist" in c or "vol" in c:
+        risks.append({
+            "level": "uyari",
+            "icon": "🟠",
+            "text": "Kalıcılık (Persistence): Dosya sistemi yönetiminde değişiklikler var.",
+            "action": "/data volume bağlantılarınızın doğruluğunu kontrol edin."
+        })
+    if "model" in c:
+        risks.append({
+            "level": "bilgi",
+            "icon": "🔵",
+            "text": "Model Yönlendirme: Yeni model desteği veya yönlendirme iyileştirmesi eklendi.",
+            "action": "SOUL.md içindeki model eşleştirmelerinizi optimize edebilirsiniz."
+        })
     
     if not risks:
-        risks.append("✅ No high-risk architectural changes detected in the upstream release.")
-        risks.append("✨ All local MiniMax customizations and persistent volumes appear compatible.")
+        risks.append({
+            "level": "bilgi",
+            "icon": "✅",
+            "text": "Güvenli: Mevcut altyapınızı etkileyecek bir risk bulunamadı.",
+            "action": "Doğrudan güncelleyebilirsiniz."
+        })
 
+    manifest_path = Path(__file__).parent / "docs" / "INFRA_MANIFEST.md"
     return JSONResponse({
-        "summary": "Impact Analysis Complete. Review the following architectural points:",
+        "summary": "AI Sürüm Analizi Tamamlandı. Lütfen aşağıdaki maddeleri inceleyin:",
         "risks": risks,
         "manifest_path": str(manifest_path.absolute()).replace("\\", "/")
     })
