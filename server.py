@@ -1802,7 +1802,8 @@ async def api_version_upgrade(request: Request):
                     url = f"https://api.github.com/repos/{owner}/{repo}/contents/Dockerfile"
                     headers = {
                         "Authorization": f"Bearer {token}",
-                        "Accept": "application/vnd.github.v3+json"
+                        "Accept": "application/vnd.github.v3+json",
+                        "User-Agent": "Hermes-Railway-Admin"
                     }
                     r = await client.get(url, headers=headers)
                     if r.status_code == 200:
