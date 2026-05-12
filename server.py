@@ -1788,7 +1788,10 @@ async def api_version_upgrade(request: Request):
         # 2. Gold Standard: Push change to GitHub via API to trigger redeploy
         owner = os.environ.get("RAILWAY_GIT_REPO_OWNER")
         repo = os.environ.get("RAILWAY_GIT_REPO_NAME")
-        token = config.get("GITHUB_TOKEN") or os.environ.get("GITHUB_TOKEN")
+        
+        # Load config from .env file
+        app_config = read_env(ENV_FILE)
+        token = app_config.get("GITHUB_TOKEN") or os.environ.get("GITHUB_TOKEN")
         
         gh_message = ""
         if owner and repo and token:
