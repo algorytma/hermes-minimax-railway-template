@@ -1622,26 +1622,39 @@ def get_current_hermes_version():
     try:
         dockerfile_path = Path(__file__).parent / "Dockerfile"
         if not dockerfile_path.exists():
+            print(f"[server] Dockerfile not found at {dockerfile_path}", flush=True)
             return "unknown"
         content = dockerfile_path.read_text(encoding="utf-8")
-        match = re.search(r"ARG HERMES_REF=(v\d+\.\d+\.\d+|main)", content)
-        return match.group(1) if match else "unknown"
-    except Exception:
+        # More lenient regex
+        match = re.search(r"ARG\s+HERMES_REF\s*=\s*([^\s#]+)", content)
+        if match:
+            v = match.group(1).strip()
+            print(f"[server] Detected current version: {v}", flush=True)
+            return v
+        print(f"[server] Could not find HERMES_REF in Dockerfile", flush=True)
+        return "unknown"
+    except Exception as e:
+        print(f"[server] Error reading Dockerfile: {e}", flush=True)
         return "unknown"
 
 async def get_latest_hermes_release():
     """Fetches the latest release info from GitHub."""
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            print("[server] Checking for updates from GitHub...", flush=True)
             resp = await client.get("https://api.github.com/repos/NousResearch/hermes-agent/releases/latest")
             if resp.status_code == 200:
                 data = resp.json()
+                v = data.get("tag_name", "unknown")
+                print(f"[server] Latest upstream version: {v}", flush=True)
                 return {
-                    "tag": data.get("tag_name", "unknown"),
+                    "tag": v,
                     "name": data.get("name", ""),
                     "body": data.get("body", ""),
                     "url": data.get("html_url", "")
                 }
+            else:
+                print(f"[server] GitHub API returned status {resp.status_code}", flush=True)
     except Exception as e:
         print(f"[server] Version check failed: {e}", flush=True)
     return None

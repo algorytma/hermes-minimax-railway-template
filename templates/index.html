@@ -1647,6 +1647,10 @@
       <div class="panel-header">
         <div class="panel-title">System Update</div>
         <div class="panel-subtitle">Manage Hermes core version and infrastructure</div>
+        <button class="btn sm" @click="checkVersion()" :disabled="version.loading" style="margin-left:12px;">
+           <span x-show="!version.loading">↺ Refresh</span>
+           <span x-show="version.loading">Checking...</span>
+        </button>
       </div>
       <div class="panel-body">
         
@@ -2082,6 +2086,7 @@ function app() {
 
     async init() {
       await Promise.all([this.loadConfig(), this.loadStatus(), this.loadLogs(), this.loadPairing()]);
+      this.checkVersion(); // Run in background
       setInterval(() => this.loadStatus(),  5000);
       setInterval(() => this.loadLogs(),    3000);
       setInterval(() => this.loadPairing(), 5000);
