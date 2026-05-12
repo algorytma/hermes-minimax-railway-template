@@ -1660,7 +1660,7 @@ async def get_latest_hermes_release():
     return None
 
 async def api_version_status(request: Request):
-    await guard(request)
+    if err := guard(request): return err
     current = get_current_hermes_version()
     latest = await get_latest_hermes_release()
     return JSONResponse({
@@ -1672,7 +1672,7 @@ async def api_version_status(request: Request):
     })
 
 async def api_version_analyze(request: Request):
-    await guard(request)
+    if err := guard(request): return err
     data = await request.json()
     changelog = data.get("changelog", "")
     
@@ -1687,7 +1687,7 @@ async def api_version_analyze(request: Request):
     })
 
 async def api_version_upgrade(request: Request):
-    await guard(request)
+    if err := guard(request): return err
     data = await request.json()
     new_version = data.get("version")
     if not new_version:

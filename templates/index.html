@@ -1817,8 +1817,14 @@ function app() {
           this.version.name = d.release_name;
           this.version.body = d.release_body;
           this.version.url = d.release_url;
+        } else {
+          this.version.current = 'error (' + r.status + ')';
+          this.version.latest = 'failed';
         }
-      } catch (e) { console.error(e); }
+      } catch (e) { 
+        this.version.current = 'offline';
+        console.error(e); 
+      }
       this.version.loading = false;
     },
 
