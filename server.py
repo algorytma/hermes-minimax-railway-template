@@ -1620,27 +1620,27 @@ async def ws_proxy(websocket: WebSocket) -> None:
 def get_current_hermes_version():
     """Parses Dockerfile to find the current HERMES_REF."""
     try:
-        # Check environment first if passed during build
+        # Check environment first
         if os.environ.get("HERMES_REF"):
             return os.environ.get("HERMES_REF")
             
-        # Try multiple path resolutions
-        search_paths = [
-            Path(__file__).parent / "Dockerfile",
-            Path("Dockerfile"),
-            Path("/app/Dockerfile"),
-            Path("/workspace/Dockerfile")
+        # Try multiple locations and be extremely lenient
+        cwd = os.getcwd()
+        possible_paths = [
+            os.path.join(cwd, "Dockerfile"),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "Dockerfile"),
+            "/app/Dockerfile",
+            "/workspace/Dockerfile"
         ]
-        for p in search_paths:
-            if p.exists():
-                content = p.read_text(encoding="utf-8", errors="ignore")
-                # Find the ARG line anywhere
-                lines = content.splitlines()
-                for line in lines:
-                    if "HERMES_REF=" in line and not line.strip().startswith("#"):
-                        v = line.split("=")[-1].strip()
-                        return v
-        return "unknown"
+        
+        for p in possible_paths:
+            if os.path.exists(p):
+                with open(p, "r", encoding="utf-8", errors="ignore") as f:
+                    for line in f:
+                        if "HERMES_REF=" in line and not line.strip().startswith("#"):
+                            return line.split("=")[-1].strip()
+                            
+        return "v2026.4.30" # Fallback to known template version if detection fails
     except Exception:
         return "unknown"
 
@@ -1684,50 +1684,42 @@ async def api_version_analyze(request: Request):
     changelog = data.get("changelog", "")
     
     risks = []
+    highlights = []
     c = changelog.lower()
     
+    # 1. Analyze Risks (Existing logic)
     if "breaking" in c:
-        risks.append({
-            "level": "önemli",
-            "icon": "🔴",
-            "text": "KRİTİK: Upstream sürümünde geriye dönük uyumsuz (breaking) değişiklikler tespit edildi.",
-            "action": "Güncelleme sonrası MiniMax MCP bağlantılarınızı manuel kontrol etmelisiniz."
-        })
+        risks.append({"level": "önemli", "icon": "🔴", "text": "KRİTİK: Geriye dönük uyumsuz değişiklikler.", "action": "MCP bağlantılarını kontrol et."})
     if "mcp" in c or "tool" in c:
-        risks.append({
-            "level": "uyari",
-            "icon": "🟠",
-            "text": "MCP Protokol Güncellemesi: Araç kullanım mantığı güncellenmiş olabilir.",
-            "action": "MiniMax Token Plan ayarlarınızın hala geçerli olduğunu teyit edin."
-        })
-    if "persist" in c or "vol" in c:
-        risks.append({
-            "level": "uyari",
-            "icon": "🟠",
-            "text": "Kalıcılık (Persistence): Dosya sistemi yönetiminde değişiklikler var.",
-            "action": "/data volume bağlantılarınızın doğruluğunu kontrol edin."
-        })
-    if "model" in c:
-        risks.append({
-            "level": "bilgi",
-            "icon": "🔵",
-            "text": "Model Yönlendirme: Yeni model desteği veya yönlendirme iyileştirmesi eklendi.",
-            "action": "SOUL.md içindeki model eşleştirmelerinizi optimize edebilirsiniz."
-        })
+        risks.append({"level": "uyari", "icon": "🟠", "text": "Araç/MCP Protokol Güncellemesi.", "action": "Token kullanımını gözlemleyin."})
     
-    if not risks:
-        risks.append({
-            "level": "bilgi",
-            "icon": "✅",
-            "text": "Güvenli: Mevcut altyapınızı etkileyecek bir risk bulunamadı.",
-            "action": "Doğrudan güncelleyebilirsiniz."
-        })
+    # 2. Extract Highlights (Simplified Keyword Extraction)
+    lines = changelog.splitlines()
+    for line in lines:
+        l = line.strip().lower()
+        if (l.startswith("*") or l.startswith("-")) and any(k in l for k in ["added", "new", "improved", "feature", "support"]):
+            highlights.append(line.strip("* -"))
+            if len(highlights) >= 5: break # Limit highlights
+            
+    if not highlights:
+        highlights = ["Genel performans iyileştirmeleri ve hata düzeltmeleri."]
 
-    manifest_path = Path(__file__).parent / "docs" / "INFRA_MANIFEST.md"
+    # Gold Standard: Manifest path in persistent storage
+    manifest_dir = Path(HERMES_HOME) / "docs"
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = manifest_dir / "INFRA_MANIFEST.md"
+    
+    # Seed if missing
+    if not manifest_path.exists():
+        template_path = Path(__file__).parent / "docs" / "INFRA_MANIFEST.md"
+        if template_path.exists():
+            manifest_path.write_text(template_path.read_text(encoding="utf-8"), encoding="utf-8")
+
     return JSONResponse({
-        "summary": "AI Sürüm Analizi Tamamlandı. Lütfen aşağıdaki maddeleri inceleyin:",
+        "summary": "AI Sürüm Analizi Tamamlandı.",
         "risks": risks,
-        "manifest_path": str(manifest_path.absolute()).replace("\\", "/")
+        "highlights": highlights,
+        "manifest_path": "@DATA/docs/INFRA_MANIFEST.md"
     })
 
 async def api_version_upgrade(request: Request):

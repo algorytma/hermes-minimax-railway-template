@@ -1661,9 +1661,9 @@
           </div>
           <div class="stat-card">
             <div class="stat-label">Latest Stable</div>
-            <div class="stat-value" :class="{green: version.latest && version.latest !== version.current}" style="font-size:14px; line-height:1.4;">
-              <div x-text="version.name || 'checking...'"></div>
-              <div style="font-size:11px; opacity:0.6; font-family:var(--font-mono);" x-text="'(' + (version.latest || '...') + ')'"></div>
+            <div class="stat-value" :class="{green: version.latest && version.latest !== version.current}" style="font-size:13px; line-height:1.2;">
+              <div style="font-weight:600; color:var(--accent);" x-text="version.name || '...'"></div>
+              <div style="font-size:10px; opacity:0.6;" x-text="'(' + (version.latest || '...') + ')'"></div>
             </div>
           </div>
         </div>
@@ -1691,21 +1691,36 @@
             <p style="margin-bottom:12px; color:var(--text-dim);" x-text="version.analysis.summary"></p>
             
             <div style="background: var(--bg); padding:16px; border-radius:8px; border:1px solid var(--border);">
-               <div style="display:flex; flex-direction:column; gap:16px;">
+               <!-- Risks Section -->
+               <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
                  <template x-for="risk in version.analysis.risks">
-                   <div style="display:flex; gap:12px; align-items:flex-start; padding-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.05);">
-                     <div style="font-size:18px; line-height:1;" x-text="risk.icon"></div>
+                   <div style="display:flex; gap:10px; align-items:flex-start; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.05);">
+                     <div style="font-size:16px;" x-text="risk.icon"></div>
                      <div style="flex:1;">
-                       <div style="font-weight:600; margin-bottom:2px;" :style="{color: risk.level==='önemli' ? '#f85149' : (risk.level==='uyari' ? '#e3b341' : 'var(--accent)')}">
+                       <div style="font-weight:600; font-size:11px;" :style="{color: risk.level==='önemli' ? '#f85149' : (risk.level==='uyari' ? '#e3b341' : 'var(--accent)')}">
                          <span x-text="risk.level.toUpperCase()"></span>
                        </div>
-                       <div x-text="risk.text" style="color:var(--text); font-weight:500;"></div>
-                       <div x-text="'👉 Aksiyon: ' + risk.action" style="margin-top:6px; font-size:12px; color:var(--text-dim); background:rgba(255,255,255,0.03); padding:4px 8px; border-radius:4px;"></div>
+                       <div x-text="risk.text" style="font-size:12px; color:var(--text);"></div>
+                       <div x-text="'👉 ' + risk.action" style="margin-top:4px; font-size:11px; color:var(--text-dim);"></div>
                      </div>
                    </div>
                  </template>
                </div>
-               <div style="margin-top:16px; font-style:italic; font-size:11px; opacity:0.6; text-align:right;">Analyzed against local INFRA_MANIFEST.md</div>
+
+               <!-- Highlights Section -->
+               <div style="margin-top:16px; padding-top:16px; border-top:2px dashed var(--border);">
+                 <p style="font-weight:600; color:var(--accent); font-size:12px; margin-bottom:10px;">✨ Yeni Özellikler & Öne Çıkanlar</p>
+                 <ul style="list-style:none; padding:0; display:flex; flex-direction:column; gap:6px;">
+                   <template x-for="h in version.analysis.highlights">
+                     <li style="display:flex; gap:8px; align-items:center; font-size:12px; color:var(--text-dim);">
+                       <span style="color:var(--accent);">★</span>
+                       <span x-text="h"></span>
+                     </li>
+                   </template>
+                 </ul>
+               </div>
+               
+               <div style="margin-top:16px; font-style:italic; font-size:10px; opacity:0.5; text-align:right;">Gold Standard: Persistent Manifest (/.hermes/docs/)</div>
             </div>
           </div>
           <div style="margin-top:16px; display:flex; gap:10px;">
