@@ -1465,6 +1465,27 @@ async def lifespan(app):
     # and it's independent of gateway state.
     asyncio.create_task(dash.start())
     await auto_start()
+    # Seed infrastructure manifest if missing in persistent storage
+    try:
+        infra_dir = Path(HERMES_HOME) / "docs"
+        infra_dir.mkdir(parents=True, exist_ok=True)
+        infra_file = infra_dir / "INFRA_MANIFEST.md"
+        if not infra_file.exists():
+            # In Railway, the repo content is at /app/
+            template = Path("/app/docs/INFRA_MANIFEST.md")
+            if not template.exists():
+                # Fallback for local dev or other environments
+                template = Path(__file__).parent / "docs" / "INFRA_MANIFEST.md"
+            
+            if template.exists():
+                print(f"[server] Seeding manifest from {template} to {infra_file}", flush=True)
+                import shutil
+                shutil.copy(template, infra_file)
+            else:
+                print(f"[server] WARNING: Template manifest not found at {template}", flush=True)
+    except Exception as e:
+        print(f"[server] Error seeding manifest: {e}", flush=True)
+
     try:
         yield
     finally:
