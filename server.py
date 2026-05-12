@@ -1782,17 +1782,51 @@ async def api_version_upgrade(request: Request):
             f"ARG HERMES_REF={new_version}", 
             content
         )
+        # 1. Update local file (so user can see it via SSH/Editor)
         dockerfile_path.write_text(new_content, encoding="utf-8")
         
-        # Try to commit and push if git is available
-        try:
-            import subprocess
-            subprocess.run(["git", "add", "Dockerfile"], check=True, capture_output=True)
-            subprocess.run(["git", "commit", "-m", f"chore: upgrade hermes to {new_version}"], check=True, capture_output=True)
-        except Exception:
-            pass
-            
-        return JSONResponse({"success": True, "message": f"Dockerfile updated to {new_version}. Push to GitHub to redeploy."})
+        # 2. Gold Standard: Push change to GitHub via API to trigger redeploy
+        owner = os.environ.get("RAILWAY_GIT_REPO_OWNER")
+        repo = os.environ.get("RAILWAY_GIT_REPO_NAME")
+        token = config.get("GITHUB_TOKEN") or os.environ.get("GITHUB_TOKEN")
+        
+        gh_message = ""
+        if owner and repo and token:
+            try:
+                import base64
+                async with httpx.AsyncClient() as client:
+                    # Get the current file SHA from GitHub
+                    url = f"https://api.github.com/repos/{owner}/{repo}/contents/Dockerfile"
+                    headers = {
+                        "Authorization": f"Bearer {token}",
+                        "Accept": "application/vnd.github.v3+json"
+                    }
+                    r = await client.get(url, headers=headers)
+                    if r.status_code == 200:
+                        file_data = r.json()
+                        sha = file_data.get("sha")
+                        
+                        # Commit the change
+                        payload = {
+                            "message": f"chore: upgrade hermes to {new_version} (auto-patch)",
+                            "content": base64.b64encode(new_content.encode("utf-8")).decode("utf-8"),
+                            "sha": sha,
+                            "branch": os.environ.get("RAILWAY_GIT_BRANCH", "main")
+                        }
+                        r2 = await client.put(url, headers=headers, json=payload)
+                        if r2.status_code in (200, 201):
+                            gh_message = " Değişiklik GitHub'a push edildi, yeni deployment otomatik başlıyor! 🚀"
+                        else:
+                            gh_message = f" GitHub API hatası: {r2.status_code}"
+            except Exception as e:
+                gh_message = f" GitHub push başarısız: {str(e)}"
+        else:
+            gh_message = " GITHUB_TOKEN eksik, değişiklik sadece yerel yapıldı. Lütfen manuel push yapın."
+
+        return JSONResponse({
+            "success": True, 
+            "message": f"Dockerfile {new_version} sürümüne güncellendi.{gh_message}"
+        })
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
