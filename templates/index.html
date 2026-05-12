@@ -1640,7 +1640,6 @@
         </div>
       </div>
     </div>
-  </div>
 
   <!-- ── Version Management panel ────────────────── -->
     <div class="panel" :class="{active: page==='version'}">
@@ -1691,51 +1690,53 @@
           </div>
         </div>
 
-        <div x-show="version.analysis" class="card" style="margin-top:20px; border-left: 4px solid var(--accent);">
-          <div class="section-label">AI Impact Analysis Report</div>
-          <div style="font-family: var(--font-sans); font-size:13px; line-height:1.6; color:var(--text);">
-            <p style="margin-bottom:12px; color:var(--text-dim);" x-text="version.analysis.summary"></p>
-            
-            <div style="background: var(--bg); padding:16px; border-radius:8px; border:1px solid var(--border);">
-               <!-- Risks Section -->
-               <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
-                 <template x-for="risk in version.analysis.risks">
-                   <div style="display:flex; gap:10px; align-items:flex-start; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.05);">
-                     <div style="font-size:16px;" x-text="risk.icon"></div>
-                     <div style="flex:1;">
-                       <div style="font-weight:600; font-size:11px;" :style="{color: risk.level==='önemli' ? '#f85149' : (risk.level==='uyari' ? '#e3b341' : 'var(--accent)')}">
-                         <span x-text="risk.level.toUpperCase()"></span>
+        <template x-if="version.analysis">
+          <div class="card" style="margin-top:20px; border-left: 4px solid var(--accent);">
+            <div class="section-label">AI Impact Analysis Report</div>
+            <div style="font-family: var(--font-sans); font-size:13px; line-height:1.6; color:var(--text);">
+              <p style="margin-bottom:12px; color:var(--text-dim);" x-text="version.analysis.summary"></p>
+              
+              <div style="background: var(--bg); padding:16px; border-radius:8px; border:1px solid var(--border);">
+                 <!-- Risks Section -->
+                 <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:16px;">
+                   <template x-for="risk in version.analysis.risks">
+                     <div style="display:flex; gap:10px; align-items:flex-start; padding-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.05);">
+                       <div style="font-size:16px;" x-text="risk.icon"></div>
+                       <div style="flex:1;">
+                         <div style="font-weight:600; font-size:11px;" :style="{color: risk.level==='önemli' ? '#f85149' : (risk.level==='uyari' ? '#e3b341' : 'var(--accent)')}">
+                           <span x-text="risk.level.toUpperCase()"></span>
+                         </div>
+                         <div x-text="risk.text" style="font-size:12px; color:var(--text);"></div>
+                         <div x-text="'👉 ' + risk.action" style="margin-top:4px; font-size:11px; color:var(--text-dim);"></div>
                        </div>
-                       <div x-text="risk.text" style="font-size:12px; color:var(--text);"></div>
-                       <div x-text="'👉 ' + risk.action" style="margin-top:4px; font-size:11px; color:var(--text-dim);"></div>
                      </div>
-                   </div>
-                 </template>
-               </div>
-
-               <!-- Highlights Section -->
-               <div style="margin-top:16px; padding-top:16px; border-top:2px dashed var(--border);">
-                 <p style="font-weight:600; color:var(--accent); font-size:12px; margin-bottom:10px;">✨ Yeni Özellikler & Öne Çıkanlar</p>
-                 <ul style="list-style:none; padding:0; display:flex; flex-direction:column; gap:6px;">
-                   <template x-for="h in version.analysis.highlights">
-                     <li style="display:flex; gap:8px; align-items:center; font-size:12px; color:var(--text-dim);">
-                       <span style="color:var(--accent);">★</span>
-                       <span x-text="h"></span>
-                     </li>
                    </template>
-                 </ul>
-               </div>
-               
-               <div style="margin-top:16px; font-style:italic; font-size:10px; opacity:0.5; text-align:right;">Gold Standard: Persistent Manifest (/.hermes/docs/)</div>
+                 </div>
+
+                 <!-- Highlights Section -->
+                 <div style="margin-top:16px; padding-top:16px; border-top:2px dashed var(--border);">
+                   <p style="font-weight:600; color:var(--accent); font-size:12px; margin-bottom:10px;">✨ Yeni Özellikler & Öne Çıkanlar</p>
+                   <ul style="list-style:none; padding:0; display:flex; flex-direction:column; gap:6px;">
+                     <template x-for="h in version.analysis.highlights">
+                       <li style="display:flex; gap:8px; align-items:center; font-size:12px; color:var(--text-dim);">
+                         <span style="color:var(--accent);">★</span>
+                         <span x-text="h"></span>
+                       </li>
+                     </template>
+                   </ul>
+                 </div>
+                 
+                 <div style="margin-top:16px; font-style:italic; font-size:10px; opacity:0.5; text-align:right;">Gold Standard: Persistent Manifest (/.hermes/docs/)</div>
+              </div>
+            </div>
+            <div style="margin-top:16px; display:flex; gap:10px;">
+               <button class="btn success" @click="upgradeHermes()" :disabled="version.upgrading">
+                  <span x-show="!version.upgrading">✅ Apply Update (Auto-Patch Dockerfile)</span>
+                  <span x-show="version.upgrading">Upgrading...</span>
+               </button>
             </div>
           </div>
-          <div style="margin-top:16px; display:flex; gap:10px;">
-             <button class="btn success" @click="upgradeHermes()" :disabled="version.upgrading">
-                <span x-show="!version.upgrading">✅ Apply Update (Auto-Patch Dockerfile)</span>
-                <span x-show="version.upgrading">Upgrading...</span>
-             </button>
-          </div>
-        </div>
+        </template>
 
         <div class="section-label" style="margin-top:24px;">Infrastructure Manifest</div>
         <div class="card" style="padding:16px; background:var(--surface2);">
