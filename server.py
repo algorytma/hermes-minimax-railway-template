@@ -1666,16 +1666,32 @@ async def get_latest_hermes_release():
         print(f"[server] Version check failed: {e}", flush=True)
     return None
 
+# Version Tag to Name Mapping
+VERSION_MAP = {
+    "v2026.5.7": "Hermes Agent v0.13.0",
+    "v2026.4.30": "Hermes Agent v0.12.0",
+    "v2026.4.15": "Hermes Agent v0.11.0"
+}
+
 async def api_version_status(request: Request):
     if err := guard(request): return err
     current = get_current_hermes_version()
     latest = await get_latest_hermes_release()
+    
+    # Try to get user-friendly names
+    c_name = VERSION_MAP.get(current, f"Hermes Agent ({current})")
+    l_tag = latest["tag"] if latest else "unknown"
+    l_name = latest["name"] if latest else ""
+    if not l_name:
+        l_name = VERSION_MAP.get(l_tag, f"Hermes Agent ({l_tag})")
+        
     return JSONResponse({
         "current": current,
-        "latest": latest["tag"] if latest else "unknown",
-        "release_name": latest["name"] if latest else "",
-        "release_body": latest["body"] if latest else "",
-        "release_url": latest["url"] if latest else ""
+        "current_name": c_name,
+        "latest": l_tag,
+        "name": l_name,
+        "changelog": latest["body"] if latest else "",
+        "url": latest["url"] if latest else ""
     })
 
 async def api_version_analyze(request: Request):
@@ -1687,33 +1703,32 @@ async def api_version_analyze(request: Request):
     highlights = []
     c = changelog.lower()
     
-    # 1. Analyze Risks (Existing logic)
+    # 1. Analyze Risks
     if "breaking" in c:
         risks.append({"level": "önemli", "icon": "🔴", "text": "KRİTİK: Geriye dönük uyumsuz değişiklikler.", "action": "MCP bağlantılarını kontrol et."})
     if "mcp" in c or "tool" in c:
         risks.append({"level": "uyari", "icon": "🟠", "text": "Araç/MCP Protokol Güncellemesi.", "action": "Token kullanımını gözlemleyin."})
     
-    # 2. Extract Highlights (Simplified Keyword Extraction)
-    lines = changelog.splitlines()
-    for line in lines:
-        l = line.strip().lower()
-        if (l.startswith("*") or l.startswith("-")) and any(k in l for k in ["added", "new", "improved", "feature", "support"]):
-            highlights.append(line.strip("* -"))
-            if len(highlights) >= 5: break # Limit highlights
-            
-    if not highlights:
-        highlights = ["Genel performans iyileştirmeleri ve hata düzeltmeleri."]
-
-    # Gold Standard: Manifest path in persistent storage
-    manifest_dir = Path(HERMES_HOME) / "docs"
-    manifest_dir.mkdir(parents=True, exist_ok=True)
-    manifest_path = manifest_dir / "INFRA_MANIFEST.md"
+    # 2. Extract Catchy Highlights
+    # Define catchy mappings
+    mappings = {
+        "video": "🎥 Native Video Understanding (Gemini & Multimodal)",
+        "voice": "🎙️ AI Voice Cloning & TTS Custom Providers",
+        "plugins": "🔌 Advanced Plugin Management & Profiles",
+        "routing": "🛣️ Intelligent Skill Media Routing",
+        "lifecycle": "🔄 New LLM Output Lifecycle Hooks",
+        "theme": "🎨 UI/UX Improvements & New Themes"
+    }
     
-    # Seed if missing
-    if not manifest_path.exists():
-        template_path = Path(__file__).parent / "docs" / "INFRA_MANIFEST.md"
-        if template_path.exists():
-            manifest_path.write_text(template_path.read_text(encoding="utf-8"), encoding="utf-8")
+    found_keys = set()
+    for key, catchy in mappings.items():
+        if key in c:
+            highlights.append(catchy)
+            found_keys.add(key)
+            if len(highlights) >= 4: break
+
+    if not highlights:
+        highlights = ["✨ Genel performans iyileştirmeleri ve stabilite yamaları."]
 
     return JSONResponse({
         "summary": "AI Sürüm Analizi Tamamlandı.",

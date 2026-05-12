@@ -1600,8 +1600,6 @@
         <!-- Issue callout -->
         <div class="guide-callout">
           Facing an issue or something not working as expected? <a href="https://github.com/praveen-ks-2001/hermes-agent-template/issues" target="_blank" rel="noopener">Create a GitHub issue</a> and we'll help you out.
-        </div>
-
       </div>
     </div>
 
@@ -1612,6 +1610,25 @@
         <div class="panel-subtitle">Deploy more AI agents on Railway</div>
       </div>
       <div class="panel-body">
+         <div class="stat-grid">
+           <div class="stat-card">
+             <div class="stat-label">INSTALLED VERSION</div>
+             <div class="stat-value" style="font-size:16px; line-height:1.2;">
+               <div style="color:#6272ff; font-weight:700;" x-text="version.current_name || '...'"></div>
+               <div style="font-size:12px; color:#50fa7b; opacity:0.8;" x-text="'(' + (version.current || '...') + ')'"></div>
+             </div>
+           </div>
+           <div class="stat-card">
+             <div class="stat-label">
+               LATEST STABLE 
+               <span x-show="version.latest && version.latest !== version.current">🚀</span>
+             </div>
+             <div class="stat-value" style="font-size:16px; line-height:1.2;">
+               <div style="color:#6272ff; font-weight:700;" x-text="version.name || '...'"></div>
+               <div style="font-size:12px; color:#50fa7b; opacity:0.8;" x-text="'(' + (version.latest || '...') + ')'"></div>
+             </div>
+           </div>
+         </div>
         <p style="font-size:13px;color:var(--text-dim);margin-bottom:18px;">
           Explore other AI agent templates you can deploy on Railway with one click.
         </p>
@@ -1656,14 +1673,20 @@
         
         <div class="stat-grid">
           <div class="stat-card">
-            <div class="stat-label">Installed Version</div>
-            <div class="stat-value" x-text="version.current || 'checking...'"></div>
+            <div class="stat-label">INSTALLED VERSION</div>
+            <div class="stat-value" style="font-size:16px; line-height:1.2;">
+              <div style="color:#6272ff; font-weight:700;">Hermes Agent v0.12.0</div>
+              <div style="font-size:12px; color:#50fa7b; opacity:0.8;" x-text="'(' + (version.current || '...') + ')'"></div>
+            </div>
           </div>
           <div class="stat-card">
-            <div class="stat-label">Latest Stable</div>
-            <div class="stat-value" :class="{green: version.latest && version.latest !== version.current}" style="font-size:13px; line-height:1.2;">
-              <div style="font-weight:600; color:var(--accent);" x-text="version.name || '...'"></div>
-              <div style="font-size:10px; opacity:0.6;" x-text="'(' + (version.latest || '...') + ')'"></div>
+            <div class="stat-label">
+              LATEST STABLE 
+              <span x-show="version.latest && version.latest !== version.current">🚀</span>
+            </div>
+            <div class="stat-value" style="font-size:16px; line-height:1.2;">
+              <div style="color:#6272ff; font-weight:700;" x-text="version.name || '...'"></div>
+              <div style="font-size:12px; color:#50fa7b; opacity:0.8;" x-text="'(' + (version.latest || '...') + ')'"></div>
             </div>
           </div>
         </div>
