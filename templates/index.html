@@ -1610,25 +1610,6 @@
         <div class="panel-subtitle">Deploy more AI agents on Railway</div>
       </div>
       <div class="panel-body">
-         <div class="stat-grid">
-           <div class="stat-card">
-             <div class="stat-label">INSTALLED VERSION</div>
-             <div class="stat-value" style="font-size:16px; line-height:1.2;">
-               <div style="color:#6272ff; font-weight:700;" x-text="version.current_name || '...'"></div>
-               <div style="font-size:12px; color:#50fa7b; opacity:0.8;" x-text="'(' + (version.current || '...') + ')'"></div>
-             </div>
-           </div>
-           <div class="stat-card">
-             <div class="stat-label">
-               LATEST STABLE 
-               <span x-show="version.latest && version.latest !== version.current">🚀</span>
-             </div>
-             <div class="stat-value" style="font-size:16px; line-height:1.2;">
-               <div style="color:#6272ff; font-weight:700;" x-text="version.name || '...'"></div>
-               <div style="font-size:12px; color:#50fa7b; opacity:0.8;" x-text="'(' + (version.latest || '...') + ')'"></div>
-             </div>
-           </div>
-         </div>
         <p style="font-size:13px;color:var(--text-dim);margin-bottom:18px;">
           Explore other AI agent templates you can deploy on Railway with one click.
         </p>
@@ -1675,7 +1656,7 @@
           <div class="stat-card">
             <div class="stat-label">INSTALLED VERSION</div>
             <div class="stat-value" style="font-size:16px; line-height:1.2;">
-              <div style="color:#6272ff; font-weight:700;">Hermes Agent v0.12.0</div>
+              <div style="color:#6272ff; font-weight:700;" x-text="version.current_name || '...'"></div>
               <div style="font-size:12px; color:#50fa7b; opacity:0.8;" x-text="'(' + (version.current || '...') + ')'"></div>
             </div>
           </div>
@@ -1845,9 +1826,10 @@ function app() {
     // Version State
     version: {
       current: '',
+      current_name: '',
       latest: '',
       name: '',
-      body: '',
+      changelog: '',
       url: '',
       analysis: null,
       loading: false,
@@ -1862,10 +1844,11 @@ function app() {
         if (r.ok) {
           const d = await r.json();
           this.version.current = d.current;
+          this.version.current_name = d.current_name;
           this.version.latest = d.latest;
-          this.version.name = d.release_name;
-          this.version.body = d.release_body;
-          this.version.url = d.release_url;
+          this.version.name = d.name;
+          this.version.changelog = d.changelog;
+          this.version.url = d.url;
         } else {
           this.version.current = 'error (' + r.status + ')';
           this.version.latest = 'failed';
@@ -1883,11 +1866,10 @@ function app() {
         const r = await fetch('/setup/api/version/analyze', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ changelog: this.version.body })
+          body: JSON.stringify({ changelog: this.version.changelog })
         });
         if (r.ok) {
           this.version.analysis = await r.json();
-          // We could also trigger a toast or a specialized modal
         }
       } catch (e) { console.error(e); }
       this.version.analyzing = false;
