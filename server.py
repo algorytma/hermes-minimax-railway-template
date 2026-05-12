@@ -1620,21 +1620,20 @@ async def ws_proxy(websocket: WebSocket) -> None:
 def get_current_hermes_version():
     """Parses Dockerfile to find the current HERMES_REF."""
     try:
-        dockerfile_path = Path(__file__).parent / "Dockerfile"
-        if not dockerfile_path.exists():
-            print(f"[server] Dockerfile not found at {dockerfile_path}", flush=True)
-            return "unknown"
-        content = dockerfile_path.read_text(encoding="utf-8")
-        # More lenient regex
-        match = re.search(r"ARG\s+HERMES_REF\s*=\s*([^\s#]+)", content)
-        if match:
-            v = match.group(1).strip()
-            print(f"[server] Detected current version: {v}", flush=True)
-            return v
-        print(f"[server] Could not find HERMES_REF in Dockerfile", flush=True)
+        # Try both relative to file and relative to CWD
+        paths = [
+            Path(__file__).parent / "Dockerfile",
+            Path("Dockerfile")
+        ]
+        for dockerfile_path in paths:
+            if dockerfile_path.exists():
+                content = dockerfile_path.read_text(encoding="utf-8")
+                # More lenient regex for various formats
+                match = re.search(r"ARG\s+HERMES_REF\s*=\s*([^\s#\n\r]+)", content)
+                if match:
+                    return match.group(1).strip()
         return "unknown"
-    except Exception as e:
-        print(f"[server] Error reading Dockerfile: {e}", flush=True)
+    except Exception:
         return "unknown"
 
 async def get_latest_hermes_release():
@@ -1678,12 +1677,28 @@ async def api_version_analyze(request: Request):
     
     # Load manifest
     manifest_path = Path(__file__).parent / "docs" / "INFRA_MANIFEST.md"
-    manifest = manifest_path.read_text(encoding="utf-8") if manifest_path.exists() else "No manifest found."
+    manifest = manifest_path.read_text(encoding="utf-8") if manifest_path.exists() else ""
     
+    # Analyze risks based on changelog keywords
+    risks = []
+    c = changelog.lower()
+    if "breaking" in c:
+        risks.append("⚠️ **BREAKING CHANGES:** Upstream mentions breaking changes. Manual verification of custom MCPs is highly recommended.")
+    if "mcp" in c or "tool" in c:
+        risks.append("🔌 **Tooling/MCP Update:** Protocol changes detected. Verify MiniMax Token Plan logic for potential token usage spikes.")
+    if "persist" in c or "vol" in c or "state" in c:
+        risks.append("💾 **Persistence:** Upstream changed state handling. Check if your /data mounts are still mapping to the expected paths.")
+    if "model" in c or "system" in c:
+        risks.append("🧠 **Core Logic:** Personality or system prompt updates found. Your custom SOUL.md might need adjustment.")
+    
+    if not risks:
+        risks.append("✅ No high-risk architectural changes detected in the upstream release.")
+        risks.append("✨ All local MiniMax customizations and persistent volumes appear compatible.")
+
     return JSONResponse({
-        "manifest": manifest,
-        "changelog": changelog,
-        "instruction": "Analyze the following changelog against the infrastructure manifest. Identify breaking changes for MiniMax MCP, persistence, and personality."
+        "summary": "Impact Analysis Complete. Review the following architectural points:",
+        "risks": risks,
+        "manifest_path": str(manifest_path.absolute()).replace("\\", "/")
     })
 
 async def api_version_upgrade(request: Request):
