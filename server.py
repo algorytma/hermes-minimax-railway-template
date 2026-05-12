@@ -1615,7 +1615,98 @@ async def ws_proxy(websocket: WebSocket) -> None:
                 pass
 
 
+
+# ── Version Management ────────────────────────────────────────────────────────
+def get_current_hermes_version():
+    """Parses Dockerfile to find the current HERMES_REF."""
+    try:
+        dockerfile_path = Path(__file__).parent / "Dockerfile"
+        if not dockerfile_path.exists():
+            return "unknown"
+        content = dockerfile_path.read_text(encoding="utf-8")
+        match = re.search(r"ARG HERMES_REF=(v\d+\.\d+\.\d+|main)", content)
+        return match.group(1) if match else "unknown"
+    except Exception:
+        return "unknown"
+
+async def get_latest_hermes_release():
+    """Fetches the latest release info from GitHub."""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get("https://api.github.com/repos/NousResearch/hermes-agent/releases/latest")
+            if resp.status_code == 200:
+                data = resp.json()
+                return {
+                    "tag": data.get("tag_name", "unknown"),
+                    "name": data.get("name", ""),
+                    "body": data.get("body", ""),
+                    "url": data.get("html_url", "")
+                }
+    except Exception as e:
+        print(f"[server] Version check failed: {e}", flush=True)
+    return None
+
+async def api_version_status(request: Request):
+    await guard(request)
+    current = get_current_hermes_version()
+    latest = await get_latest_hermes_release()
+    return JSONResponse({
+        "current": current,
+        "latest": latest["tag"] if latest else "unknown",
+        "release_name": latest["name"] if latest else "",
+        "release_body": latest["body"] if latest else "",
+        "release_url": latest["url"] if latest else ""
+    })
+
+async def api_version_analyze(request: Request):
+    await guard(request)
+    data = await request.json()
+    changelog = data.get("changelog", "")
+    
+    # Load manifest
+    manifest_path = Path(__file__).parent / "docs" / "INFRA_MANIFEST.md"
+    manifest = manifest_path.read_text(encoding="utf-8") if manifest_path.exists() else "No manifest found."
+    
+    return JSONResponse({
+        "manifest": manifest,
+        "changelog": changelog,
+        "instruction": "Analyze the following changelog against the infrastructure manifest. Identify breaking changes for MiniMax MCP, persistence, and personality."
+    })
+
+async def api_version_upgrade(request: Request):
+    await guard(request)
+    data = await request.json()
+    new_version = data.get("version")
+    if not new_version:
+        return JSONResponse({"error": "No version specified"}, status_code=400)
+    
+    try:
+        dockerfile_path = Path(__file__).parent / "Dockerfile"
+        content = dockerfile_path.read_text(encoding="utf-8")
+        
+        # Non-destructive update of the version arg
+        new_content = re.sub(
+            r"ARG HERMES_REF=(v\d+\.\d+\.\d+|main)", 
+            f"ARG HERMES_REF={new_version}", 
+            content
+        )
+        dockerfile_path.write_text(new_content, encoding="utf-8")
+        
+        # Try to commit and push if git is available
+        try:
+            import subprocess
+            subprocess.run(["git", "add", "Dockerfile"], check=True, capture_output=True)
+            subprocess.run(["git", "commit", "-m", f"chore: upgrade hermes to {new_version}"], check=True, capture_output=True)
+        except Exception:
+            pass
+            
+        return JSONResponse({"success": True, "message": f"Dockerfile updated to {new_version}. Push to GitHub to redeploy."})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 ANY_METHOD = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
+
 
 routes = [
     # Public — no auth required.
@@ -1647,6 +1738,9 @@ routes = [
     Route("/setup/api/pairing/deny",            api_pairing_deny,    methods=["POST"]),
     Route("/setup/api/pairing/approved",        api_pairing_approved),
     Route("/setup/api/pairing/revoke",          api_pairing_revoke,  methods=["POST"]),
+    Route("/setup/api/version/status",           api_version_status),
+    Route("/setup/api/version/analyze",          api_version_analyze, methods=["POST"]),
+    Route("/setup/api/version/upgrade",          api_version_upgrade, methods=["POST"]),
 
     # /setup/* typos return a real 404 — not a silent proxy fallthrough.
     Route("/setup/{path:path}",                 route_setup_404,     methods=ANY_METHOD),

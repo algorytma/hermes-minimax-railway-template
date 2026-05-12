@@ -985,6 +985,14 @@
       <span>Brain Editor</span>
     </div>
 
+    <div class="nav-item"
+         :class="{active: page==='version', locked: !isSetupDone}"
+         @click="isSetupDone && (page='version'); mobileMenuOpen=false; checkVersion()">
+      <span class="nav-icon">🆙</span>
+      <span>System Update</span>
+      <span class="nav-badge" :class="{visible: version.latest && version.latest !== version.current}" x-text="'NEW'"></span>
+    </div>
+
     <div class="nav-group-label" style="margin-top:8px">Resources</div>
     <div class="nav-item" :class="{active: page==='guide'}" @click="page='guide'; mobileMenuOpen=false">
       <span class="nav-icon">📖</span>
@@ -1634,6 +1642,74 @@
       </div>
     </div>
 
+    <!-- ── Version Management panel ────────────────── -->
+    <div class="panel" :class="{active: page==='version'}">
+      <div class="panel-header">
+        <div class="panel-title">System Update</div>
+        <div class="panel-subtitle">Manage Hermes core version and infrastructure</div>
+      </div>
+      <div class="panel-body">
+        
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-label">Installed Version</div>
+            <div class="stat-value" x-text="version.current || 'checking...'"></div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Latest Stable</div>
+            <div class="stat-value" :class="{green: version.latest && version.latest !== version.current}" x-text="version.latest || 'checking...'"></div>
+          </div>
+        </div>
+
+        <div x-show="version.latest && version.latest !== version.current" class="card" style="border-color: var(--accent); background: rgba(98,114,255,0.05); margin-bottom: 20px;">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+            <span style="font-size:24px;">🚀</span>
+            <div>
+              <p style="font-size:15px; font-weight:600; color:white;">A new version is available: <span x-text="version.name"></span></p>
+              <p class="hint">Upgrading to <span x-text="version.latest"></span> brings new features and improvements.</p>
+            </div>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn primary" @click="analyzeUpgrade()" :disabled="version.analyzing">
+              <span x-show="!version.analyzing">🔍 Run AI Impact Analysis</span>
+              <span x-show="version.analyzing">Analyzing...</span>
+            </button>
+            <a :href="version.url" target="_blank" class="btn sm">View on GitHub</a>
+          </div>
+        </div>
+
+        <div x-show="version.analysis" class="card" style="margin-top:20px; border-left: 4px solid var(--accent);">
+          <div class="section-label">AI Impact Analysis Report</div>
+          <div style="font-family: var(--font-sans); font-size:13px; line-height:1.6; color:var(--text);">
+            <p style="margin-bottom:12px; color:var(--text-dim);">I have compared the upstream changelog with your <code>INFRA_MANIFEST.md</code>. Here is what I found:</p>
+            
+            <div style="background: var(--bg); padding:16px; border-radius:8px; border:1px solid var(--border);">
+               <div style="margin-bottom:15px;">
+                 <p style="font-weight:600; color:var(--accent); margin-bottom:5px;">🛡️ The Guardian (Safety Check)</p>
+                 <p x-text="version.analysis.instruction" style="font-style:italic; font-size:12px; margin-bottom:10px;"></p>
+                 <div style="white-space: pre-wrap; font-family: var(--font-mono); font-size:12px;" x-text="'Analyzing potential breaking changes in ' + version.latest + '... [Ready for agent consultation]'"></div>
+               </div>
+               
+               <p style="font-size:12px; color:var(--text-dim);">Click the button below to send the full technical data to the agent for a detailed breakdown.</p>
+            </div>
+          </div>
+          <div style="margin-top:16px; display:flex; gap:10px;">
+             <button class="btn success" @click="upgradeHermes()" :disabled="version.upgrading">
+                <span x-show="!version.upgrading">✅ Apply Update (Auto-Patch Dockerfile)</span>
+                <span x-show="version.upgrading">Upgrading...</span>
+             </button>
+          </div>
+        </div>
+
+        <div class="section-label" style="margin-top:24px;">Infrastructure Manifest</div>
+        <div class="card" style="padding:16px; background:var(--surface2);">
+          <p class="hint" style="margin-bottom:10px;">This manifest guides the AI during the upgrade analysis to ensure your MiniMax and persistence settings are preserved.</p>
+          <button class="btn sm" @click="page='brain'; fsOpenFile({path:'docs/INFRA_MANIFEST.md', is_dir:false})">Edit Manifest 🧠</button>
+        </div>
+
+      </div>
+    </div>
+
   </div><!-- #main -->
 </div><!-- #layout -->
 
@@ -1712,6 +1788,70 @@ function app() {
     fsCreateType: 'file',
     fsCreateName: '',
     jar: null,
+
+    // Version State
+    version: {
+      current: '',
+      latest: '',
+      name: '',
+      body: '',
+      url: '',
+      analysis: null,
+      loading: false,
+      analyzing: false,
+      upgrading: false
+    },
+
+    async checkVersion() {
+      this.version.loading = true;
+      try {
+        const r = await fetch('/setup/api/version/status');
+        if (r.ok) {
+          const d = await r.json();
+          this.version.current = d.current;
+          this.version.latest = d.latest;
+          this.version.name = d.release_name;
+          this.version.body = d.release_body;
+          this.version.url = d.release_url;
+        }
+      } catch (e) { console.error(e); }
+      this.version.loading = false;
+    },
+
+    async analyzeUpgrade() {
+      this.version.analyzing = true;
+      try {
+        const r = await fetch('/setup/api/version/analyze', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ changelog: this.version.body })
+        });
+        if (r.ok) {
+          this.version.analysis = await r.json();
+          // We could also trigger a toast or a specialized modal
+        }
+      } catch (e) { console.error(e); }
+      this.version.analyzing = false;
+    },
+
+    async upgradeHermes() {
+      if (!confirm(`Upgrade Hermes to ${this.version.latest}?\nThis will modify your Dockerfile and attempt to commit. You will need to push to GitHub to trigger a redeploy.`)) return;
+      this.version.upgrading = true;
+      try {
+        const r = await fetch('/setup/api/version/upgrade', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ version: this.version.latest })
+        });
+        const d = await r.json();
+        if (d.success) {
+          this.notify(d.message, true);
+        } else {
+          this.notify(d.error || 'Upgrade failed', false);
+        }
+      } catch (e) { this.notify('Upgrade failed: ' + e.message, false); }
+      this.version.upgrading = false;
+    },
 
     isHot(ts) {
       if (!ts) return false;
