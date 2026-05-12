@@ -1077,21 +1077,27 @@ async def api_config_reset(request: Request):
 
 # ── File System Editor (Brain Editor) ─────────────────────────────────────────
 
+def resolve_path(p: str) -> Path:
+    """Helper to resolve @DATA, @WORKSPACE, @PROMPTS etc."""
+    if p.startswith("@PROMPTS"):
+        p = p.replace("@PROMPTS", str(Path(__file__).parent / "prompts"), 1)
+    elif p.startswith("@DATA"):
+        p = p.replace("@DATA", str(HERMES_HOME), 1)
+    elif p.startswith("@WORKSPACE"):
+        p = p.replace("@WORKSPACE", str(Path(HERMES_HOME) / "workspace"), 1)
+    elif p.startswith("@ROOT"):
+        p = p.replace("@ROOT", "/", 1)
+    
+    # Prevent path traversal outside allowed areas if necessary, 
+    # but for now we trust the resolved absolute path.
+    return Path(p).resolve()
+
 async def api_fs_list(request: Request):
     if err := guard(request): return err
     target_dir = request.query_params.get("dir", "@ROOT")
     
-    if target_dir == "@PROMPTS":
-        target_dir = str(Path(__file__).parent / "prompts")
-    elif target_dir == "@DATA":
-        target_dir = str(HERMES_HOME)
-    elif target_dir == "@WORKSPACE":
-        target_dir = str(Path(HERMES_HOME) / "workspace")
-    elif target_dir == "@ROOT":
-        target_dir = "/"
-    
     try:
-        target_path = Path(target_dir).resolve()
+        target_path = resolve_path(target_dir)
     except Exception:
         return JSONResponse({"error": "Invalid path"}, status_code=400)
     
@@ -1133,7 +1139,7 @@ async def api_fs_read(request: Request):
         return JSONResponse({"error": "Path required"}, status_code=400)
         
     try:
-        p = Path(target_file).resolve()
+        p = resolve_path(target_file)
         if not p.exists() or not p.is_file():
             return JSONResponse({"error": "File not found"}, status_code=404)
         content = p.read_text(encoding="utf-8")
@@ -1149,10 +1155,9 @@ async def api_fs_write(request: Request):
         body = await request.json()
         target_file = body.get("path")
         content = body.get("content", "")
-        if not target_file:
-            return JSONResponse({"error": "Path required"}, status_code=400)
-            
-        p = Path(target_file).resolve()
+        if not target_file: return JSONResponse({"error": "No path"}, status_code=400)
+        
+        p = resolve_path(target_file)
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content, encoding="utf-8")
         return JSONResponse({"ok": True})
@@ -1163,10 +1168,11 @@ async def api_fs_create(request: Request):
     if err := guard(request): return err
     try:
         body = await request.json()
-        target_path = body.get("path")
+        path = body.get("path")
         is_dir = body.get("is_dir", False)
-        if not target_path: return JSONResponse({"error": "Path required"}, status_code=400)
-        p = Path(target_path).resolve()
+        if not path: return JSONResponse({"error": "No path"}, status_code=400)
+        
+        p = resolve_path(path)
         if p.exists(): return JSONResponse({"error": "Already exists"}, status_code=400)
         p.parent.mkdir(parents=True, exist_ok=True)
         if is_dir: p.mkdir()
@@ -1179,9 +1185,10 @@ async def api_fs_delete(request: Request):
     if err := guard(request): return err
     try:
         body = await request.json()
-        target_path = body.get("path")
-        if not target_path: return JSONResponse({"error": "Path required"}, status_code=400)
-        p = Path(target_path).resolve()
+        path = body.get("path")
+        if not path: return JSONResponse({"error": "No path"}, status_code=400)
+        
+        p = resolve_path(path)
         if not p.exists(): return JSONResponse({"error": "Not found"}, status_code=404)
         import shutil
         if p.is_dir(): shutil.rmtree(p)
@@ -1197,8 +1204,8 @@ async def api_fs_rename(request: Request):
         old_path = body.get("old_path")
         new_path = body.get("new_path")
         if not old_path or not new_path: return JSONResponse({"error": "Paths required"}, status_code=400)
-        p_old = Path(old_path).resolve()
-        p_new = Path(new_path).resolve()
+        p_old = resolve_path(old_path)
+        p_new = resolve_path(new_path)
         if not p_old.exists(): return JSONResponse({"error": "Source not found"}, status_code=404)
         if p_new.exists(): return JSONResponse({"error": "Destination exists"}, status_code=400)
         p_new.parent.mkdir(parents=True, exist_ok=True)
@@ -1213,7 +1220,7 @@ async def api_fs_media(request: Request):
     if not target_file:
         return JSONResponse({"error": "Path required"}, status_code=400)
         
-    p = Path(target_file).resolve()
+    p = resolve_path(target_file)
     if not p.exists() or not p.is_file():
         return JSONResponse({"error": "File not found"}, status_code=404)
         

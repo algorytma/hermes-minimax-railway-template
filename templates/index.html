@@ -1741,7 +1741,7 @@
         <div class="section-label" style="margin-top:24px;">Infrastructure Manifest</div>
         <div class="card" style="padding:16px; background:var(--surface2);">
           <p class="hint" style="margin-bottom:10px;">This manifest guides the AI during the upgrade analysis to ensure your MiniMax and persistence settings are preserved.</p>
-          <button class="btn sm" @click="page='brain'; fsOpenFile({path: version.analysis ? version.analysis.manifest_path : 'docs/INFRA_MANIFEST.md', is_dir:false})">Edit Manifest 🧠</button>
+          <button class="btn sm" @click="page='brain'; fsOpenFile({path: version.analysis ? version.analysis.manifest_path : '@DATA/docs/INFRA_MANIFEST.md', is_dir:false})">Edit Manifest 🧠</button>
         </div>
 
       </div>
