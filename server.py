@@ -128,6 +128,8 @@ ENV_VARS = [
     ("MATRIX_ACCESS_TOKEN",      "Access Token",             "matrix",    True),
     ("MATRIX_USER_ID",           "User ID",                  "matrix",    False),
     ("GATEWAY_ALLOW_ALL_USERS",  "Allow all users",          "gateway",   False),
+    ("PKB_REPO_URL",             "Second Brain Repo (user/repo)", "pkb", False),
+    ("PKB_SYNC_INTERVAL",        "Sync Interval (minutes)",  "pkb",       False),
     ("ADMIN_USERNAME",           "Admin username",           "admin",     False),
     ("ADMIN_PASSWORD",           "Admin password",           "admin",     True),
     ("MINIMAX_TOKEN_PLAN_ENABLED", "Enable MiniMax Token Plan (Global)", "provider", False),
@@ -393,6 +395,45 @@ def ensure_agent_docs() -> None:
         print(f"[server] Seeded {created} agent doc(s) under {docs_dir}", flush=True)
 
 
+def ensure_workspace_scaffold(pkb_enabled: bool = False) -> None:
+    """Seed the workspace with AGENTS.md, hermes.md and optional PKB folders."""
+    workspace_dir = Path(HERMES_HOME) / "workspace"
+    workspace_dir.mkdir(parents=True, exist_ok=True)
+    
+    agents_md = workspace_dir / "AGENTS.md"
+    hermes_md = workspace_dir / "hermes.md"
+    
+    if not agents_md.exists():
+        agents_md.write_text(textwrap.dedent("""\
+            # Hermes Agent Knowledge Base & Roles
+            
+            This file defines your expertise and rules for navigating the workspace.
+            
+            ## Directories
+            - `knowledge_base/`: Contains domain knowledge, instructions, and references.
+            - `projects/`: Where you should write your code and execute tasks.
+            - `private/`: USER'S PRIVATE NOTES. DO NOT READ OR MODIFY.
+            
+            ## Directives
+            - Always prefer reading from `knowledge_base/` before searching the web for internal topics.
+            - You are operating inside the `workspace/` directory.
+        """))
+        
+    if not hermes_md.exists():
+        hermes_md.write_text(textwrap.dedent("""\
+            # Workspace & Project Index
+            
+            This is the root of your workspace. 
+            Use this file to track ongoing projects, daily tasks, and statuses.
+        """))
+
+    if pkb_enabled:
+        (workspace_dir / "knowledge_base").mkdir(exist_ok=True)
+        (workspace_dir / "projects").mkdir(exist_ok=True)
+        (workspace_dir / "private").mkdir(exist_ok=True)
+
+
+
 # ── config.yaml helpers ───────────────────────────────────────────────────────
 def write_config_yaml(data: dict[str, str]) -> None:
     """Merge-write config.yaml: update model/provider/MCP settings while
@@ -464,7 +505,7 @@ def write_config_yaml(data: dict[str, str]) -> None:
     existing.setdefault("terminal", {})
     existing["terminal"].setdefault("backend", "local")
     existing["terminal"].setdefault("timeout", 60)
-    existing["terminal"].setdefault("cwd", "/tmp")
+    existing["terminal"]["cwd"] = str(Path(HERMES_HOME) / "workspace")
 
     # ── Agent (official Hermes param name is max_turns, not max_iterations)
     existing.setdefault("agent", {})
@@ -527,12 +568,13 @@ def write_env(path: Path, data: dict[str, str]) -> None:
 
     cat_order = ["model", "provider", "tool",
                  "telegram", "discord", "slack", "whatsapp",
-                 "email", "mattermost", "matrix", "gateway"]
+                 "email", "mattermost", "matrix", "gateway", "pkb"]
     cat_labels = {
         "model": "Model", "provider": "Providers", "tool": "Tools",
         "telegram": "Telegram", "discord": "Discord", "slack": "Slack",
         "whatsapp": "WhatsApp", "email": "Email",
         "mattermost": "Mattermost", "matrix": "Matrix", "gateway": "Gateway",
+        "pkb": "Second Brain (PKB)"
     }
     key_cat = {k: c for k, _, c, _ in ENV_VARS}
     grouped: dict[str, list[str]] = {c: [] for c in cat_order}
@@ -784,6 +826,7 @@ class Gateway:
             # Seed SOUL.md (agent identity) and agent docs on first run
             ensure_soul_md()
             ensure_agent_docs()
+            ensure_workspace_scaffold(bool(env.get("PKB_REPO_URL")))
             # Write/merge config.yaml so hermes picks up the model
             write_config_yaml(read_env(ENV_FILE))
             self.proc = await asyncio.create_subprocess_exec(
@@ -1459,11 +1502,82 @@ async def auto_start():
         print("[server] Config incomplete — gateway not started. Configure provider + model in the admin UI.", flush=True)
 
 
+async def pkb_sync_loop():
+    """Background daemon to sync the workspace directory with GitHub."""
+    workspace_dir = Path(HERMES_HOME) / "workspace"
+    while True:
+        env_data = read_env(ENV_FILE)
+        repo_url = env_data.get("PKB_REPO_URL", "")
+        token = env_data.get("GITHUB_TOKEN", "")
+        interval_str = env_data.get("PKB_SYNC_INTERVAL", "5")
+        
+        try:
+            interval_min = max(1, int(interval_str))
+        except ValueError:
+            interval_min = 5
+            
+        if not repo_url or not token:
+            await asyncio.sleep(60)
+            continue
+            
+        try:
+            # 1. Init git if needed
+            git_dir = workspace_dir / ".git"
+            if not git_dir.exists():
+                print("[pkb] Initializing Second Brain Git repo...", flush=True)
+                proc = await asyncio.create_subprocess_exec("git", "init", cwd=workspace_dir)
+                await proc.wait()
+                
+            # 2. Configure remote (with token)
+            auth_url = f"https://oauth2:{token}@github.com/{repo_url}.git"
+            
+            proc = await asyncio.create_subprocess_exec("git", "remote", "set-url", "origin", auth_url, cwd=workspace_dir, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+            await proc.wait()
+            if proc.returncode != 0:
+                proc2 = await asyncio.create_subprocess_exec("git", "remote", "add", "origin", auth_url, cwd=workspace_dir, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+                await proc2.wait()
+                
+            # Configure git user
+            proc = await asyncio.create_subprocess_exec("git", "config", "user.email", "hermes@railway.app", cwd=workspace_dir)
+            await proc.wait()
+            proc = await asyncio.create_subprocess_exec("git", "config", "user.name", "Hermes Agent", cwd=workspace_dir)
+            await proc.wait()
+                
+            # 3. Add & Commit
+            proc = await asyncio.create_subprocess_exec("git", "status", "--porcelain", cwd=workspace_dir, stdout=asyncio.subprocess.PIPE)
+            stdout, _ = await proc.communicate()
+            has_changes = bool(stdout.strip())
+            
+            if has_changes:
+                proc = await asyncio.create_subprocess_exec("git", "add", ".", cwd=workspace_dir)
+                await proc.wait()
+                proc = await asyncio.create_subprocess_exec("git", "commit", "-m", "chore: auto-sync from hermes workspace", cwd=workspace_dir)
+                await proc.wait()
+            
+            # 4. Pull (we use fetch + merge --allow-unrelated-histories to be robust)
+            # Actually standard `git pull origin main --no-rebase` is fine if remote has main
+            proc = await asyncio.create_subprocess_exec("git", "pull", "origin", "main", "--no-rebase", "--allow-unrelated-histories", "-s", "recursive", "-X", "ours", cwd=workspace_dir, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+            await proc.wait()
+            
+            # 5. Push
+            proc = await asyncio.create_subprocess_exec("git", "push", "origin", "main", cwd=workspace_dir, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+            await proc.wait()
+            
+            if has_changes or proc.returncode == 0:
+                print(f"[pkb] Synced workspace with {repo_url} successfully.", flush=True)
+                
+        except Exception as e:
+            print(f"[pkb] Sync loop error: {e}", flush=True)
+            
+        await asyncio.sleep(interval_min * 60)
+
+
 @asynccontextmanager
 async def lifespan(app):
     # Dashboard runs always — it's the user-facing UI after setup is done,
     # and it's independent of gateway state.
     asyncio.create_task(dash.start())
+    asyncio.create_task(pkb_sync_loop())
     await auto_start()
     # Seed infrastructure manifest if missing in persistent storage
     try:

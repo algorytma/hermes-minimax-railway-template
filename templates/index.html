@@ -1415,8 +1415,38 @@
         <div class="panel-title">Brain Editor</div>
         <div class="panel-subtitle">Manage agent files, prompts, and memory</div>
       </div>
-      <div class="panel-body" style="padding: 16px;">
-        <div class="fs-container">
+      <div class="panel-body" style="padding: 16px; display:flex; flex-direction:column; gap:16px;">
+        
+        <!-- Second Brain (PKB) Setup -->
+        <div class="card" style="border-color: var(--accent); background: rgba(98,114,255,0.05); padding:16px; margin:0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:20px;">🧠</span>
+              <div>
+                <h3 style="margin:0; font-size:14px; color:var(--text-bright);">Second Brain (PKB) Sync</h3>
+                <p class="hint" style="margin:2px 0 0 0;">Auto-sync the agent's workspace with a GitHub repository. Fully compatible with Obsidian.</p>
+              </div>
+            </div>
+            <button class="btn sm primary" @click="saveConfig()" :disabled="saving">
+              <span x-show="!saving">Save & Initialize</span>
+              <span x-show="saving">Saving...</span>
+            </button>
+          </div>
+          <div class="field-grid-2">
+            <div>
+              <label class="field-label">GitHub Repository</label>
+              <input type="text" :value="vars.PKB_REPO_URL||''" @input="vars.PKB_REPO_URL=$event.target.value" placeholder="e.g. username/my-second-brain">
+              <p class="hint" style="margin-top:4px;">Requires GITHUB_TOKEN to be set in Setup tab.</p>
+            </div>
+            <div>
+              <label class="field-label">Sync Interval (Minutes)</label>
+              <input type="number" :value="vars.PKB_SYNC_INTERVAL||'5'" @input="vars.PKB_SYNC_INTERVAL=$event.target.value" min="1" max="120" placeholder="5">
+              <p class="hint" style="margin-top:4px;">How often the workspace syncs automatically.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="fs-container" style="flex:1; min-height:400px;">
           <!-- Sol Sütun: Klasör/Dosya Ağacı -->
           <div class="fs-sidebar" :class="{show: !fsFileOpen}" @click.window="fsActiveMenu = null">
             <div class="fs-header" style="flex-direction: column; align-items: stretch; gap: 10px;">
