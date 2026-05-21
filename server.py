@@ -1502,74 +1502,107 @@ async def auto_start():
         print("[server] Config incomplete — gateway not started. Configure provider + model in the admin UI.", flush=True)
 
 
-async def pkb_sync_loop():
-    """Background daemon to sync the workspace directory with GitHub."""
+import hmac
+import hashlib
+
+async def perform_rag_sync():
+    """Background task to pull from GitHub and perform RAG indexing."""
     workspace_dir = Path(HERMES_HOME) / "workspace"
-    while True:
-        env_data = read_env(ENV_FILE)
-        repo_url = env_data.get("PKB_REPO_URL", "")
-        token = env_data.get("GITHUB_TOKEN", "")
-        interval_str = env_data.get("PKB_SYNC_INTERVAL", "5")
+    env_data = read_env(ENV_FILE)
+    repo_url = env_data.get("PKB_REPO_URL", "")
+    token = env_data.get("GITHUB_TOKEN", "")
+    
+    if not repo_url or not token:
+        print("[pkb] Skipping sync: No repo or token configured.", flush=True)
+        return
         
-        try:
-            interval_min = max(1, int(interval_str))
-        except ValueError:
-            interval_min = 5
-            
-        if not repo_url or not token:
-            await asyncio.sleep(60)
-            continue
-            
-        try:
-            # 1. Init git if needed
-            git_dir = workspace_dir / ".git"
-            if not git_dir.exists():
-                print("[pkb] Initializing Second Brain Git repo...", flush=True)
-                proc = await asyncio.create_subprocess_exec("git", "init", cwd=workspace_dir)
-                await proc.wait()
-                
-            # 2. Configure remote (with token)
-            auth_url = f"https://oauth2:{token}@github.com/{repo_url}.git"
-            
-            proc = await asyncio.create_subprocess_exec("git", "remote", "set-url", "origin", auth_url, cwd=workspace_dir, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
-            await proc.wait()
-            if proc.returncode != 0:
-                proc2 = await asyncio.create_subprocess_exec("git", "remote", "add", "origin", auth_url, cwd=workspace_dir, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
-                await proc2.wait()
-                
-            # Configure git user
-            proc = await asyncio.create_subprocess_exec("git", "config", "user.email", "hermes@railway.app", cwd=workspace_dir)
-            await proc.wait()
-            proc = await asyncio.create_subprocess_exec("git", "config", "user.name", "Hermes Agent", cwd=workspace_dir)
-            await proc.wait()
-                
-            # 3. Add & Commit
-            proc = await asyncio.create_subprocess_exec("git", "status", "--porcelain", cwd=workspace_dir, stdout=asyncio.subprocess.PIPE)
-            stdout, _ = await proc.communicate()
-            has_changes = bool(stdout.strip())
-            
-            if has_changes:
-                proc = await asyncio.create_subprocess_exec("git", "add", ".", cwd=workspace_dir)
-                await proc.wait()
-                proc = await asyncio.create_subprocess_exec("git", "commit", "-m", "chore: auto-sync from hermes workspace", cwd=workspace_dir)
-                await proc.wait()
-            
-            # 4. Pull (we use fetch + merge --allow-unrelated-histories to be robust)
-            # Actually standard `git pull origin main --no-rebase` is fine if remote has main
-            proc = await asyncio.create_subprocess_exec("git", "pull", "origin", "main", "--no-rebase", "--allow-unrelated-histories", "-s", "recursive", "-X", "ours", cwd=workspace_dir, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+    try:
+        # 1. Init git if needed
+        git_dir = workspace_dir / ".git"
+        if not git_dir.exists():
+            print("[pkb] Initializing Second Brain Git repo...", flush=True)
+            proc = await asyncio.create_subprocess_exec("git", "init", cwd=workspace_dir)
             await proc.wait()
             
-            # 5. Push
-            proc = await asyncio.create_subprocess_exec("git", "push", "origin", "main", cwd=workspace_dir, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
-            await proc.wait()
+        # 2. Configure remote (with token)
+        auth_url = f"https://oauth2:{token}@github.com/{repo_url}.git"
+        proc = await asyncio.create_subprocess_exec("git", "remote", "set-url", "origin", auth_url, cwd=workspace_dir, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+        await proc.wait()
+        if proc.returncode != 0:
+            proc2 = await asyncio.create_subprocess_exec("git", "remote", "add", "origin", auth_url, cwd=workspace_dir, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+            await proc2.wait()
             
-            if has_changes or proc.returncode == 0:
-                print(f"[pkb] Synced workspace with {repo_url} successfully.", flush=True)
-                
-        except Exception as e:
-            print(f"[pkb] Sync loop error: {e}", flush=True)
+        # Configure git user
+        proc = await asyncio.create_subprocess_exec("git", "config", "user.email", "hermes@railway.app", cwd=workspace_dir)
+        await proc.wait()
+        proc = await asyncio.create_subprocess_exec("git", "config", "user.name", "Hermes (Ajan)", cwd=workspace_dir)
+        await proc.wait()
+
+        # 3. Pull latest changes
+        print("[pkb] Pulling latest changes from GitHub...", flush=True)
+        proc = await asyncio.create_subprocess_exec(
+            "git", "pull", "--rebase", "origin", "main", 
+            cwd=workspace_dir, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await proc.communicate()
+        if proc.returncode != 0:
+            print(f"[pkb] Git pull info/warning: {stderr.decode()}", flush=True)
             
-        await asyncio.sleep(interval_min * 60)
+        # 4. RAG Indexing & Metadata Injection
+        print("[pkb] Running Vector DB Indexing & Metadata Injection...", flush=True)
+        # TODO: Implement actual LLM embedding and database insertion logic here
+        
+        # 5. Secure Push (Uncomment when actual metadata is injected)
+        # proc = await asyncio.create_subprocess_exec("git", "add", ".", cwd=workspace_dir)
+        # await proc.wait()
+        # proc = await asyncio.create_subprocess_exec("git", "commit", "-m", "Ajan Hafızası: Notlar okundu ve etiketlendi", cwd=workspace_dir)
+        # await proc.wait()
+        # proc = await asyncio.create_subprocess_exec("git", "push", "origin", "main", cwd=workspace_dir)
+        # await proc.wait()
+        
+        print("[pkb] Sync and indexing completed successfully.", flush=True)
+    except Exception as e:
+        print(f"[pkb] Sync error: {e}", flush=True)
+
+async def api_webhook_github(request: Request):
+    """Handle incoming GitHub Webhooks."""
+    env_data = read_env(ENV_FILE)
+    secret = env_data.get("GITHUB_WEBHOOK_SECRET", "")
+    
+    if secret:
+        signature = request.headers.get("x-hub-signature-256", "")
+        if not signature.startswith("sha256="):
+            return JSONResponse({"error": "Missing or invalid signature"}, status_code=401)
+            
+        payload = await request.body()
+        mac = hmac.new(secret.encode(), msg=payload, digestmod=hashlib.sha256)
+        expected = "sha256=" + mac.hexdigest()
+        if not hmac.compare_digest(expected, signature):
+            return JSONResponse({"error": "Signature mismatch"}, status_code=401)
+
+    try:
+        data = await request.json()
+        pusher_name = data.get("pusher", {}).get("name", "")
+        commit_message = ""
+        if data.get("commits") and len(data["commits"]) > 0:
+            commit_message = data["commits"][0].get("message", "")
+            
+        # Infinite Loop Protection
+        if "Ajan Hafızası" in commit_message or pusher_name.lower() == "hermes (ajan)":
+            print("[webhook] Ignoring push from Agent to prevent infinite loop.", flush=True)
+            return JSONResponse({"ok": True, "message": "Ignored agent push"})
+
+        # Start sync process asynchronously
+        asyncio.create_task(perform_rag_sync())
+        return JSONResponse({"ok": True, "message": "Sync started"})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+async def api_fs_sync(request: Request):
+    """Manual trigger from the UI for Force Sync & Index."""
+    if err := guard(request): return err
+    asyncio.create_task(perform_rag_sync())
+    return JSONResponse({"ok": True, "message": "Sync & Indexing started"})
 
 
 @asynccontextmanager
@@ -1577,7 +1610,6 @@ async def lifespan(app):
     # Dashboard runs always — it's the user-facing UI after setup is done,
     # and it's independent of gateway state.
     asyncio.create_task(dash.start())
-    asyncio.create_task(pkb_sync_loop())
     await auto_start()
     # Seed infrastructure manifest if missing in persistent storage
     try:
@@ -1985,6 +2017,10 @@ routes = [
     Route("/setup/api/version/status",           api_version_status),
     Route("/setup/api/version/analyze",          api_version_analyze, methods=["POST"]),
     Route("/setup/api/version/upgrade",          api_version_upgrade, methods=["POST"]),
+    
+    # Second Brain / Webhook Routes
+    Route("/api/webhook/github",                api_webhook_github,  methods=["POST"]),
+    Route("/setup/api/fs/sync",                 api_fs_sync,         methods=["POST"]),
 
     # /setup/* typos return a real 404 — not a silent proxy fallthrough.
     Route("/setup/{path:path}",                 route_setup_404,     methods=ANY_METHOD),

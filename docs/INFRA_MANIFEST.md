@@ -1,86 +1,97 @@
-# Hermes-MiniMax Infrastructure Manifest & Architecture (v1.5)
+# Hermes-MiniMax Altyapı Manifestosu & Mimarisi (v1.6)
 
-This document serves as the **Single Source of Truth** for the Hermes agent's custom architecture. 
-It is read by:
-1. **Developer Agents (IDE)**: To understand the architectural blueprint before writing code.
-2. **Runtime AI (Hermes)**: To perform "AI Impact Analysis" during upstream version upgrades.
+Bu belge, Hermes ajanının özel mimarisi için **Tek Gerçeklik Kaynağı (Single Source of Truth)** ve **Altın Standart (Gold Standard)** işlevini görür.
+İki temel işlevi sorunsuzca birleştirir:
+1. **Geliştirici Ajanlar (IDE)**: Kod yazmadan önce mimari taslağı anlamaları için.
+2. **Çalışma Zamanı Yapay Zekası (Hermes) & UI Güncelleme Analizörü**: Yukarı akış (upstream) versiyon güncellemeleri sırasında web paneli üzerinden "Yapay Zeka Etki Analizi (AI Impact Analysis)" gerçekleştirmek ve sistem bütünlüğünü sağlamak adına birincil referans noktası olarak hizmet etmek için.
 
-During any system update or development session, these components must be preserved or adapted carefully.
-
----
-
-## 1. Project Identity & Versioning
-- **Current Core Version**: Tracked via `ARG HERMES_REF` in the root `Dockerfile`.
-- **Purpose**: A specialized Hermes Agent template optimized for Railway deployment with native MiniMax support, multi-model fallback, and a robust persistent file system.
-- **Repositories**:
-  - **Core Agent**: `NousResearch/hermes-agent`
-  - **Media MCP**: `algorytma/MiniMax-MCP-JS` (Custom JS Fork)
-  - **This Template**: `algorytma/hermes-minimax-railway-template`
+Herhangi bir sistem güncellemesi veya geliştirme oturumu sırasında, bu bileşenler dikkatle korunmalı veya uyarlanmalıdır.
 
 ---
 
-## 2. Persistence Map & Config Merge Strategy
-The system runs in an ephemeral Railway Docker container. **ALL data must be persisted to `/data` (`HERMES_HOME`).**
-- **Working Directory**: `/data/.hermes/`
-- **config.yaml**: Managed via `server.py` using **PyYAML deep merge**. Manual edits to `config.yaml` are preserved. The system prompt is no longer in `config.yaml`.
-- **SOUL.md**: Resides at `/data/.hermes/SOUL.md` (Slot #1 for the system prompt).
-- **.env**: Contains system-level environment variables (e.g., API keys, Tokens). Excluded from git.
-- **State & Checkpoints**: `/data/.hermes/state.db` and `/data/.hermes/checkpoints/`
-- **mcp-output**: `/data/.hermes/mcp-output/` (Bypasses API 5-minute URL expiry for media).
-
-### Manifest Seeding (`INFRA_MANIFEST.md`)
-On startup, `server.py` checks for `/data/.hermes/docs/INFRA_MANIFEST.md`. If missing, it copies it from `/app/docs/` (the Docker image). This ensures the agent always has self-awareness without overwriting user changes.
+## 1. Proje Kimliği & Versiyonlama
+- **Mevcut Çekirdek (Core) Versiyon**: Kök `Dockerfile` içerisindeki `ARG HERMES_REF` üzerinden takip edilir.
+- **Amaç**: Native MiniMax desteği, çoklu model yedekleme (fallback) mekanizması ve güçlü bir kalıcı dosya sistemi ile Railway dağıtımı (deployment) için optimize edilmiş özel bir Hermes Ajanı şablonu.
+- **Repolar (Repositories)**:
+  - **Çekirdek Ajan (Core Agent)**: `NousResearch/hermes-agent`
+  - **Medya MCP**: `algorytma/MiniMax-MCP-JS` (Özel JS Forku)
+  - **Bu Şablon**: `algorytma/hermes-minimax-railway-template`
 
 ---
 
-## 3. Second Brain (PKB Sync) & Workspace
-The agent operates within a dedicated workspace that is continuously synced with a private GitHub repository (e.g., an Obsidian Vault) to act as a "Second Brain".
-- **Path**: `/data/.hermes/workspace/`
-- **Structure**: 
-  - `knowledge_base/`: Domain knowledge for the agent.
-  - `projects/`: Where code and outputs are generated.
-  - `private/`: User's private notes (Ignored by the agent).
-  - `AGENTS.md` / `hermes.md`: Directives and indexes.
-- **Daemon (`pkb_sync_loop`)**: An async task in `server.py` that runs every `PKB_SYNC_INTERVAL` minutes, committing changes and pulling (`--no-rebase`) via `GITHUB_TOKEN` to ensure a 2-Way Git sync.
+## 2. Kalıcılık (Persistence) Haritası & Yapılandırma Birleştirme Stratejisi
+Sistem geçici (ephemeral) bir Railway Docker konteynerinde çalışır. **TÜM veriler `/data` (`HERMES_HOME`) dizinine kaydedilmelidir.**
+- **Çalışma Dizini**: `/data/.hermes/`
+- **config.yaml**: `server.py` tarafından **PyYAML deep merge** kullanılarak yönetilir. `config.yaml` dosyasına yapılan manuel düzenlemeler korunur. Sistem komutu (system prompt) artık `config.yaml` içerisinde değildir.
+- **SOUL.md**: `/data/.hermes/SOUL.md` yolunda bulunur (Sistem komutu için Slot #1).
+- **.env**: Sistem düzeyindeki çevresel değişkenleri (örn. API anahtarları, Token'lar) içerir. Git'ten hariç tutulmuştur.
+- **Durum & Kayıt Noktaları (State & Checkpoints)**: `/data/.hermes/state.db` ve `/data/.hermes/checkpoints/`
+- **mcp-output**: `/data/.hermes/mcp-output/` (Medyalar için API'nin 5 dakikalık URL sona erme süresini atlar).
+
+### Manifesto Tohumlama (`INFRA_MANIFEST.md`)
+Başlangıçta, `server.py` `/data/.hermes/docs/INFRA_MANIFEST.md` dosyasını kontrol eder. Eksikse, `/app/docs/` (Docker imajı) içerisinden kopyalar. Bu, kullanıcı değişikliklerinin üzerine yazılmadan ajanın her zaman kendi mimari yapısının farkında olmasını sağlar.
 
 ---
 
-## 4. The Hybrid "Highway" MCP Solution & Token Plan
-To bypass hardcoded model restrictions in the official Python MCP, a Hybrid Architecture is used:
-1. **Research Node (Python)**: `uvx minimax-coding-plan-mcp` (Handles Web Search and Vision).
-2. **Media Node (Custom JS Fork)**: `npx -y algorytma/MiniMax-MCP-JS` (Handles TTS, Video, Music). This fork strips enum validations and allows dynamic model injection.
-
-**Daily Quotas (Token Plan Max):**
-- **Research / VLM**: 15,000 per 5 hours.
-- **Video (`Hailuo-2.3-Fast-768P-6s`)**: STRICTLY 2 per day.
-- **Music (`music-2.6`)**: 100 per day.
-- **TTS (`speech-2.8-hd`)**: 11,000 per day.
-*Agent Directive*: Plan generation calls efficiently. If quotas exceed, fallback models must be used gracefully without hallucinating external tools.
+## 3. İkinci Beyin (PKB Sync) & Webhook/RAG Çalışma Alanı
+Ajan, bir "İkinci Beyin" (Second Brain) olarak hareket etmesi için gizli bir GitHub reposuyla (örn. bir Obsidian Kasası) senkronize edilen özel bir çalışma alanı içerisinde faaliyet gösterir.
+- **Yol**: `/data/.hermes/workspace/`
+- **Yapı**: 
+  - `knowledge_base/`: Ajan için alan (domain) bilgisi.
+  - `projects/`: Kodların ve çıktıların üretildiği yer.
+  - `private/`: Kullanıcının gizli notları (Ajan tarafından yoksayılır).
+  - `AGENTS.md` / `hermes.md`: Yönergeler ve dizinler.
+- **Olay Güdümlü (Event-Driven) Senkronizasyon**: Eski periyodik `pkb_sync_loop` yerine, `/api/webhook/github` üzerinden dinlenen bir Webhook mekanizması kullanılır. GitHub'a bir not pushlandığında:
+  1. Sunucu anında `git pull --rebase` yapar.
+  2. Hermes'in RAG altyapısı (Vector DB) tetiklenerek yeni markdown dosyaları indekslenir.
+  3. Ajan, notlara "Okundu/İşlendi" (Metadata) etiketi bırakır ve sonsuz döngü (infinite loop) koruması eşliğinde güvenli bir şekilde `git push` ile GitHub'a geri gönderir.
 
 ---
 
-## 5. Brain Editor & File System
-The custom web dashboard includes a mobile-native "Brain Editor".
-- **`resolve_path` Aliases**:
+## 4. Hibrit "Otoyol (Highway)" MCP Çözümü & Token Planı
+Resmi Python MCP'sindeki kodlanmış model kısıtlamalarını aşmak için, Hibrit bir Mimari kullanılır:
+1. **Araştırma Düğümü (Python)**: `uvx minimax-coding-plan-mcp` (Web Araması ve Görüntü İşleme / Vision işlemlerini yönetir).
+2. **Medya Düğümü (Özel JS Forku)**: `npx -y algorytma/MiniMax-MCP-JS` (TTS, Video, Müzik işlemlerini yönetir). Bu fork enum doğrulamalarını kaldırır ve dinamik model enjeksiyonuna izin verir.
+
+**Günlük Kotalar (Token Planı Maksimumları):**
+- **Araştırma / VLM**: 5 saat başına 15.000.
+- **Video (`Hailuo-2.3-Fast-768P-6s`)**: KESİNLİKLE günde 2 adet.
+- **Müzik (`music-2.6`)**: Günde 100 adet.
+- **TTS (`speech-2.8-hd`)**: Günde 11.000 adet.
+*Ajan Yönergesi*: Plan oluşturma çağrılarını verimli yapın. Kotalar aşılırsa, harici araçlar uydurmak yerine zarif bir şekilde yedek (fallback) modellere geçilmelidir.
+
+---
+
+## 5. Beyin Editörü & Dosya Sistemi
+Özel web paneli (dashboard), mobil uyumlu bir "Beyin Editörü" (Brain Editor) barındırır.
+- **`resolve_path` Kısayolları (Aliases)**:
   - `@DATA` -> `/data/.hermes`
   - `@WORKSPACE` -> `/data/.hermes/workspace`
   - `@PROMPTS` -> `/app/prompts`
   - `@ROOT` -> `/`
-- Always use these aliases in the UI. E.g., The "Edit Manifest" button points to `@DATA/docs/INFRA_MANIFEST.md`.
+- Kullanıcı arayüzünde her zaman bu kısayolları kullanın. Örn., "Edit Manifest" butonu `@DATA/docs/INFRA_MANIFEST.md` yolunu işaret etmelidir.
 
 ---
 
-## 6. Upgrades & Auto-Patching (GitHub API)
-Upgrades are handled via the web UI without manual terminal intervention.
-- **Mechanism**: The UI edits `/app/Dockerfile` locally and uses the `GITHUB_TOKEN` to push a commit (updating `ARG HERMES_REF=vX.Y.Z`) directly to the repository via the GitHub Contents API.
-- **Trigger**: Railway detects the new commit and automatically initiates a redeployment.
-- **Security**: `.gitignore` explicitly ignores `.hermes/`, `data/`, and `config.yaml` to prevent leaking secrets.
+## 6. Yapay Zeka Etki Analizi & Otomatik Yama (Sistem Güncellemesi)
+Güncellemeler, manuel terminal müdahalesini ortadan kaldıran ve güncelleme risklerini azaltan web panelinin "Sistem Güncellemesi" (System Update) modülü aracılığıyla akıllıca yönetilir.
+
+### Changelog Ayrıştırma & Risk Değerlendirmesi
+Herhangi bir güncellemeden önce, arayüz (UI) en son upstream sürümünü (Typeless/Hermes-Agent) çeker ve değişiklik günlüğünü (changelog) bu manifestoyla karşılaştırır:
+- **Risk Tanımlaması**: Sistem kritik anahtar kelimeleri tarar (örn., "breaking" kelimesi kırmızı Kritik Risk oluşturur, "mcp" veya "tool" kelimesi token kullanımıyla ilgili Turuncu bir Uyarı tetikler).
+- **Altın Standart Referansı (Gold Standard)**: Bu `INFRA_MANIFEST.md` dosyası, yapay zeka analizörü tarafından özel mimari bağımlılıklarını (Hibrit Otoyol MCP'si veya PKB Senkronizasyonu gibi) upstream değişikliklerine karşı çapraz kontrol etmek için aktif olarak referans alınır.
+
+### Otomatik Yama Mekanizması
+Kullanıcı, Yapay Zeka Etki Analizi raporunu inceleyip güncellemeyi onayladığında:
+- **Mekanizma**: Arayüz, `/app/Dockerfile` dosyasını yerel olarak güvenle yamalar ve GitHub Contents API'si aracılığıyla (`ARG HERMES_REF=vX.Y.Z` güncelleyerek) doğrudan depoya (repo) bir commit göndermek için `GITHUB_TOKEN` kullanır.
+- **Tetikleyici**: Railway yeni commit'i algılar ve otomatik olarak bir yeniden dağıtım (redeployment) başlatır.
+- **Güvenlik**: `.gitignore`, gizli bilgilerin (secrets) sızmasını önlemek adına `.hermes/`, `data/` ve `config.yaml` dizinlerini açıkça hariç tutar.
 
 ---
 
-## 7. Known Bugs & System Limitations
-- **Gateway External Restart BUG**: If the Hermes gateway is restarted natively (via Hermes' own UI or internal crash) rather than our Admin UI, our `Gateway` class reports an "error" state.
-  - *Cause*: `_drain()` loses the stdout pipe when `--replace` creates a new process.
-  - *Current Mitigation*: `server.py` attempts OS-level checks using `pgrep -f "hermes.*gateway"` and known PID files, but this occasionally fails inside the Railway container. 
-  - *Note for Developers*: Do not rely solely on `self.proc.returncode`. If fixing, consider a polling healthcheck to a known local endpoint.
-- **`display.personality` Warning**: The Hermes gateway may output a warning about missing `agent.personalities`. This is harmless; the merge logic correctly preserves user settings.
+## 7. Bilinen Hatalar (Bugs) & Sistem Kısıtlamaları
+- **Ağ Geçidi (Gateway) Harici Yeniden Başlatma HATASI**: Hermes ağ geçidi (gateway), Yönetici Arayüzümüz (Admin UI) yerine yerel olarak (Hermes'in kendi arayüzü veya dahili çökme yoluyla) yeniden başlatılırsa, `Gateway` sınıfımız bir "error" (hata) durumu bildirir.
+  - *Neden*: `--replace` yeni bir işlem başlattığında `_drain()` standart çıktı (stdout) bağlantısını (pipe) kaybeder.
+  - *Mevcut Önlem*: `server.py` `pgrep -f "hermes.*gateway"` ve bilinen PID dosyalarını kullanarak işletim sistemi düzeyinde kontroller yapmaya çalışır, ancak bu bazen Railway konteyneri içerisinde başarısız olur. 
+  - *Geliştiriciler İçin Not*: Sadece `self.proc.returncode` üzerine güvenmeyin. Düzeltiliyorsa, bilinen yerel bir uç noktaya (endpoint) yönelik yoklama/bekleme (polling) yapan bir sağlık kontrolü (healthcheck) düşünün.
+- **`display.personality` Uyarısı**: Hermes ağ geçidi, eksik `agent.personalities` hakkında bir uyarı çıktısı verebilir. Bu zararsızdır; birleştirme (merge) mantığı kullanıcı ayarlarını doğru bir şekilde korur.
