@@ -1,0 +1,37 @@
+# Proje Geliştirme, GitHub & Deploy Kuralları (Agent & IDE Portability)
+
+Bu proje (`hermes-minimax-railway-template`), geliştirme ortamının sürekli değişebileceği göz önünde bulundurularak "Taşınabilirlik (Portability)" ilkesine göre tasarlanmıştır. Yeni bir bilgisayara geçildiğinde veya yeni bir Yapay Zeka (AI Agent / Cursor) asistanı projeye dahil olduğunda, projenin tüm yaşam döngüsü aşağıdaki 3 omurga dosyadan okunmalıdır:
+
+1. **`.cursorrules` (Bu dosya):** Projenin "Nasıl Geliştirildiği", "Nasıl Deploy Edildiği", "GitHub Süreçleri" ve "MCP Davranışları" buradadır.
+2. **`docs/INFRA_MANIFEST.md`:** Projenin Altyapısı, Mimari Kararları ve Modüler Yapısı buradadır.
+3. **`Gemini.md`:** Ajanların (Özellikle Antigravity/Gemini) iletişim ve oryantasyon kuralları buradadır.
+*(Önemli API Key'leri ve erişim bilgileri ise daima `.env` dosyasında tutulur ve asla repoya gönderilmez).*
+
+---
+
+## 1. Railway Deploy & CLI Süreçleri
+
+Proje, canlı ortama (Production) **Railway** üzerinden çıkmaktadır.
+- **Nasıl Deploy Yapılır?** Proje GitHub'a bağlıdır. Herhangi bir `git push origin main` komutu Railway'i otomatik olarak tetikler ve deploy sürecini başlatır.
+- **Logların Kontrolü:** Ajanların veya geliştiricinin Railway Dashboard'una girmesine gerek yoktur. Lokal makinede yüklü olan Railway CLI kullanılarak deploy süreci izlenmelidir.
+  - Komut: `/Users/emre/.railway/bin/railway logs` (veya duruma göre `railway logs`)
+- **Container İncelemesi:** Eğer deploy hatalı olursa, ajan sorunu tespit etmek için SSH üzerinden Railway sunucu container'ına bağlanabilir. Gerekli detaylar (SSH linkleri vb.) kök dizindeki `.env` dosyasında mevcuttur.
+
+## 2. Environment (Ortam) Yönetimi ve Ayrımı
+
+Bu projede Geliştirici (Local) ve Kullanıcı (Railway/Production) ortamları kesin olarak birbirinden ayrılmıştır:
+- **Geliştirici Tarafı (Lokal):** Tüm test, kodlama ve yetkilendirmeler (GitHub senkronizasyonu vb.) projenin **kök dizinindeki `.env`** dosyasında bulunan token ile yürütülür.
+- **Kullanıcı Tarafı (Production):** Projeyi kendi Railway'lerine kuran kullanıcılar, ilk ayarları `/setup` (WebUI) vasıtasıyla yaparlar. Uygulama çalışırken kullanıcıya ait configler ve erişim bilgileri, Railway Persistent Storage içindeki `/.hermes/data/.env` (veya benzeri bir veri yolunda) tutulur.
+*Kural:* Geliştirme yaparken (özellikle yeni özellik eklerken), modüllerin bu dinamik ve relative path'leri okuyacak şekilde yapılandırıldığından emin olun, kök `.env` dosyasını production ortamına hardcode etmeyin.
+
+## 3. GitHub & "Well-Documented" Standartları
+
+Bu proje, koddan çok kalitesiyle öne çıkan, "Well-Documented" (İyi belgelenmiş) bir GitHub projesidir.
+- Yapılan her iş, yeni gelen geliştiricinin/ajanın hemen anlayabileceği sadelikte olmalıdır.
+- **Commit Kuralları:** Tüm commit'ler Conventional Commits kurallarına (örn. `feat(auth): add jwt`, `fix(ui): resolve button bug`) uygun ve son derece açıklayıcı atılmalıdır.
+- `git status` ve `git diff` ile değişiklikler dikkatle gözden geçirilmeli, asla şifre barındıran `.env` tarzı dosyalar repoya pushlanmamalıdır.
+
+## 4. Yapay Zeka Ajanları İçin MCP ve Terminal Kısıtlamaları
+
+- **Terminal Push Zorunluluğu:** Değiştirilen dosyalar (örneğin `server.py` gibi binlerce satırlık dosyalar) yüksek boyutlu ise, LLM Output Context (Çıkış Token Sınırı) hatalarına düşmemek adına **asla MCP araçlarıyla (github-mcp-server) PUSH EDİLMEMELİDİR**. Bu tür büyük değişiklikler daima **Lokal Terminal üzerinden (`git push`)** yapılmalıdır.
+- **MCP Kullanımı:** MCP aracı, yalnızca projenin ufak yapılandırma değişiklikleri, doküman revizyonları (markdown) veya spesifik API analizleri için "asistan/yardımcı" araç olarak kullanılmalıdır.
