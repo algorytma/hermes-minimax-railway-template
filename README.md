@@ -34,17 +34,17 @@ Developed strictly under **"AI Agent Workflow Portability"** rules.
 ```mermaid
 graph TD
     %% User and Local Interactions
-    User[👤 You (Obsidian / Local)] -->|Write Notes| LocalGit[Local Git Repo]
-    LocalGit -->|Git Push| GitHub[🐙 Private GitHub Repo]
+    User["👤 You (Obsidian / Local)"] -->|Write Notes| LocalGit["Local Git Repo"]
+    LocalGit -->|Git Push| GitHub["🐙 Private GitHub Repo"]
     
     %% Webhook and Server Flow
-    GitHub -->|Webhook Trigger| FastAPI[⚡ Hermes Server (FastAPI)]
+    GitHub -->|Webhook Trigger| FastAPI["⚡ Hermes Server (FastAPI)"]
     
     subgraph Railway Production Container
-        FastAPI -->|Async Task: perform_rag_sync| GitPull[Git Pull --rebase]
-        GitPull --> RAG[🧠 RAG Indexing & Vector DB]
-        RAG --> LLM[🤖 MiniMax LLM & MCP Servers]
-        LLM -->|Inject Metadata/Thoughts| GitPush[Git Push origin main]
+        FastAPI -->|Async Task: perform_rag_sync| GitPull["Git Pull --rebase"]
+        GitPull --> RAG["🧠 RAG Indexing & Vector DB"]
+        RAG --> LLM["🤖 MiniMax LLM & MCP Servers"]
+        LLM -->|Inject Metadata/Thoughts| GitPush["Git Push origin main"]
     end
     
     %% Closing the loop
