@@ -185,6 +185,32 @@ SOUL_MD_CONTENT = textwrap.dedent("""\
 
     You are an expert Hermes AI assistant using the Official MiniMax Native Integration (Token Plan Max).
 
+    ## Obsidian Second Brain & PKB Workspace Integration
+
+    You are connected to an Obsidian-based Second Brain workspace. You MUST strictly follow the rules in `workspace/HERMES_RULES.md` at all times:
+    
+    1. **Inbox Policy:** Always write any new ideas, notes, or raw suggestions as Markdown files directly into the `workspace/00_Inbox/` directory. NEVER modify, delete, or write directly into `20_Projects/` or `30_Knowledge_Base/` without explicit user permission.
+    
+    2. **Advanced YAML Frontmatter:** Every markdown note you create or edit MUST start with this YAML header:
+       ```yaml
+       ---
+       title: "[Descriptive Title]"
+       date: [Current Date in YYYY-MM-DD]
+       type: [idea | project | resource | daily]
+       status: review
+       tags:
+         - brain/inbox
+         - [relevant-topic-tag]
+       links:
+         - "[[20_Projects/Path/To/RelatedNote]]"
+       ---
+       ```
+       
+    3. **Semantic Linking & WikiLinks (Obsidian Graph View):** 
+       - Always analyze existing folders in `workspace/20_Projects/` and `workspace/30_Knowledge_Base/` to find related notes.
+       - Automatically establish connections by placing `[[Note_Name]]` (WikiLinks) in your markdown content or the `links:` YAML block.
+       - This is critical to dynamically build the user's Obsidian Graph View.
+
     ## Tool Model Mapping
 
     CRITICAL: Always explicitly specify these models when using tools:
@@ -245,10 +271,11 @@ def ensure_soul_md() -> None:
         # Check if it's already our content
         is_ours = "MiniMax Native Integration" in current
         if is_ours:
-            # v1.6: Update SOUL.md if it's missing the vision routing directive
+            # v1.7: Update SOUL.md if it's missing the vision routing directive or Second Brain rules
             needs_vision_update = "mcp_minimax_research_understand_image" not in current
-            if needs_vision_update:
-                print("[server] Updating SOUL.md with vision routing directives.", flush=True)
+            needs_sb_update = "Obsidian Second Brain" not in current
+            if needs_vision_update or needs_sb_update:
+                print("[server] Updating SOUL.md with latest vision and Second Brain integration rules.", flush=True)
                 soul_path.write_text(SOUL_MD_CONTENT)
                 return
             print("[server] SOUL.md already has custom identity — preserving.", flush=True)
@@ -400,6 +427,23 @@ def ensure_workspace_scaffold(pkb_enabled: bool = False) -> None:
     workspace_dir = Path(HERMES_HOME) / "workspace"
     workspace_dir.mkdir(parents=True, exist_ok=True)
     
+    # 1. Try seeding from Workspace_Template directory
+    template_dir = Path("/app/Workspace_Template")
+    if not template_dir.exists():
+        template_dir = Path("./Workspace_Template")  # Fallback for local development
+        
+    if template_dir.exists():
+        print(f"[server] Workspace_Template found at {template_dir.resolve()}. Seeding workspace...", flush=True)
+        import shutil
+        try:
+            # Copy all files and folders (00_Inbox, 10_Daily_Notes, 20_Projects, 30_Knowledge_Base, HERMES_RULES.md)
+            shutil.copytree(template_dir, workspace_dir, dirs_exist_ok=True)
+            print("[server] Workspace seeded with template successfully.", flush=True)
+            return  # Template succeeded, skip fallback seeding
+        except Exception as e:
+            print(f"[server] Error seeding workspace from template: {e}. Falling back to default seeding.", flush=True)
+
+    # 2. Fallback seeding if template not found or copy failed
     agents_md = workspace_dir / "AGENTS.md"
     hermes_md = workspace_dir / "hermes.md"
     
@@ -1552,13 +1596,32 @@ async def perform_rag_sync():
         print("[pkb] Running Vector DB Indexing & Metadata Injection...", flush=True)
         # TODO: Implement actual LLM embedding and database insertion logic here
         
-        # 5. Secure Push (Uncomment when actual metadata is injected)
-        # proc = await asyncio.create_subprocess_exec("git", "add", ".", cwd=workspace_dir)
-        # await proc.wait()
-        # proc = await asyncio.create_subprocess_exec("git", "commit", "-m", "Ajan Hafızası: Notlar okundu ve etiketlendi", cwd=workspace_dir)
-        # await proc.wait()
-        # proc = await asyncio.create_subprocess_exec("git", "push", "origin", "main", cwd=workspace_dir)
-        # await proc.wait()
+        # 5. Secure Push (Uncommented and improved for autonomous second brain sync)
+        proc_status = await asyncio.create_subprocess_exec(
+            "git", "status", "--porcelain", 
+            cwd=workspace_dir, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        )
+        status_stdout, _ = await proc_status.communicate()
+        
+        if status_stdout.strip():
+            print("[pkb] Changes detected. Committing and pushing to GitHub...", flush=True)
+            proc_add = await asyncio.create_subprocess_exec("git", "add", ".", cwd=workspace_dir)
+            await proc_add.wait()
+            
+            proc_commit = await asyncio.create_subprocess_exec(
+                "git", "commit", "-m", "Ajan Hafızası: Notlar güncellendi ve bağlandı", 
+                cwd=workspace_dir
+            )
+            await proc_commit.wait()
+            
+            proc_push = await asyncio.create_subprocess_exec("git", "push", "origin", "main", cwd=workspace_dir)
+            await proc_push.wait()
+            if proc_push.returncode == 0:
+                print("[pkb] Changes pushed successfully.", flush=True)
+            else:
+                print("[pkb] Git push failed. Please verify credentials.", flush=True)
+        else:
+            print("[pkb] No changes detected. Skipping push.", flush=True)
         
         print("[pkb] Sync and indexing completed successfully.", flush=True)
     except Exception as e:
