@@ -1987,7 +1987,7 @@ async def api_version_upgrade(request: Request):
         
         # Non-destructive update of the version arg
         new_content = re.sub(
-            r"ARG HERMES_REF=(v\d+\.\d+\.\d+|main)", 
+            r"ARG HERMES_REF=(v\d+\.\d+\.\d+(?:\.\d+)*|main)", 
             f"ARG HERMES_REF={new_version}", 
             content
         )
