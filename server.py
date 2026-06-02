@@ -1591,6 +1591,11 @@ async def perform_rag_sync():
         print("[pkb] Skipping sync: No repo or token configured.", flush=True)
         return
         
+    # Normalize repo_url (extract user/repo from full URL if provided)
+    if "github.com/" in repo_url:
+        repo_url = repo_url.split("github.com/")[-1]
+    repo_url = repo_url.strip().strip("/").replace(".git", "")
+        
     try:
         # 1. Init git if needed
         git_dir = workspace_dir / ".git"
