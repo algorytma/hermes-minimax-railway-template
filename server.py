@@ -436,9 +436,19 @@ def ensure_workspace_scaffold(pkb_enabled: bool = False) -> None:
         print(f"[server] Workspace_Template found at {template_dir.resolve()}. Seeding workspace...", flush=True)
         import shutil
         try:
-            # Copy all files and folders (00_Inbox, 10_Daily_Notes, 20_Projects, 30_Knowledge_Base, HERMES_RULES.md)
+            # Copy all files and folders (00_Inbox, 10_Daily_Notes, 20_Projects, 30_Knowledge_Base, HERMES_RULES.md, AGENTS.md, hermes.md)
             shutil.copytree(template_dir, workspace_dir, dirs_exist_ok=True)
             print("[server] Workspace seeded with template successfully.", flush=True)
+            
+            # Clean up legacy folders if they exist
+            for old_dir in ["knowledge_base", "projects", "private"]:
+                old_path = workspace_dir / old_dir
+                if old_path.exists() and old_path.is_dir():
+                    try:
+                        shutil.rmtree(old_path)
+                        print(f"[server] Removed legacy directory: {old_dir}", flush=True)
+                    except Exception as e:
+                        print(f"[server] Could not remove legacy directory {old_dir}: {e}", flush=True)
             return  # Template succeeded, skip fallback seeding
         except Exception as e:
             print(f"[server] Error seeding workspace from template: {e}. Falling back to default seeding.", flush=True)
