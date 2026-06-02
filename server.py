@@ -436,8 +436,26 @@ def ensure_workspace_scaffold(pkb_enabled: bool = False) -> None:
         print(f"[server] Workspace_Template found at {template_dir.resolve()}. Seeding workspace...", flush=True)
         import shutil
         try:
+            # Explicitly remove old index files to force overwrite
+            for target_file in ["AGENTS.md", "hermes.md", "HERMES_RULES.md"]:
+                t_path = workspace_dir / target_file
+                if t_path.exists():
+                    t_path.unlink()
+                    print(f"[server] Unlinked old {target_file} to force overwrite.", flush=True)
+
             # Copy all files and folders (00_Inbox, 10_Daily_Notes, 20_Projects, 30_Knowledge_Base, HERMES_RULES.md, AGENTS.md, hermes.md)
-            shutil.copytree(template_dir, workspace_dir, dirs_exist_ok=True)
+            for src_path in template_dir.rglob("*"):
+                if src_path.name == ".DS_Store":
+                    continue
+                rel_path = src_path.relative_to(template_dir)
+                dst_path = workspace_dir / rel_path
+                
+                if src_path.is_dir():
+                    dst_path.mkdir(parents=True, exist_ok=True)
+                else:
+                    dst_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(src_path, dst_path)
+            
             print("[server] Workspace seeded with template successfully.", flush=True)
             
             # Clean up legacy folders if they exist
@@ -1561,6 +1579,9 @@ import hashlib
 
 async def perform_rag_sync():
     """Background task to pull from GitHub and perform RAG indexing."""
+    # Seed the workspace template (AGENTS.md, etc.) and clean up legacy directories before syncing
+    ensure_workspace_scaffold(True)
+    
     workspace_dir = Path(HERMES_HOME) / "workspace"
     env_data = read_env(ENV_FILE)
     repo_url = env_data.get("PKB_REPO_URL", "")
